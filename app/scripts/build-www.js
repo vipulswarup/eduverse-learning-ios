@@ -4,6 +4,7 @@
 const fs = require("fs"), path = require("path");
 const root = path.join(__dirname, ".."), src = path.join(root, "www-src"), out = process.env.EDV_OUT || path.join(root, "www");
 const cfg = JSON.parse(fs.readFileSync(path.join(root, "config.json"), "utf8"));
+try { process.loadEnvFile(path.join(root, ".env")); } catch (e) { if (e.code !== "ENOENT") throw e; }
 // AI goes straight to Groq from the phone (no EduVerse server). EDV_GROQ_BASE / EDV_GROQ_KEY override for tests.
 const GROQ = (process.env.EDV_GROQ_BASE || "https://api.groq.com").replace(/\/$/, "");
 const KEY = process.env.EDV_GROQ_KEY || cfg.groqKey || "";

@@ -24,7 +24,7 @@ eduverse-ios/
 Routing lives in `app/www-src/native-shim.js` (`route()`): this phone's own lesson cache → Apple Intelligence → Groq. If Groq's big model is at its per-minute limit, the app retries on the small, faster model. Free learners get 25 online AI helps a day, Pro 150 (`config.json`). Apple Intelligence answers don't count.
 
 ### Know the trade-offs
-- **The Groq key is inside the app.** Anyone determined can pull it out of the app file and use up your free Groq allowance, and Groq could block the key. Use a separate Groq key just for EduVerse, keep an eye on usage at console.groq.com, and if it's abused: make a new key, set it as `EDV_GROQ_KEY`, rebuild and ship an update. Groq's free limits are shared by **all** your users (roughly 1,000 big-model requests a day and about 12,000 tokens a minute; the small model has more). When it's busy, learners see "EduVerse is very busy right now. Try again in a minute." Upgrade to Groq's paid plan when you outgrow it; nothing else changes.
+- **The Groq key is inside the app.** Anyone determined can pull it out of the app file and use up your free Groq allowance, and Groq could block the key. Use a separate Groq key just for EduVerse, keep an eye on usage at console.groq.com, and if it's abused: make a new key, put it in `app/.env`, rebuild and ship an update. Groq's free limits are shared by **all** your users (roughly 1,000 big-model requests a day and about 12,000 tokens a minute; the small model has more). When it's busy, learners see "EduVerse is very busy right now. Try again in a minute." Upgrade to Groq's paid plan when you outgrow it; nothing else changes.
 - **Check Groq's terms for a children's app.** Groq's developer agreement is separate from its website terms. Read it (or ask Groq) to confirm you may use it in an app for under-18s before you launch.
 - **Lesson quality:** Groq's GPT-OSS 120B is good but not Claude-level; Apple Intelligence is smaller still. Expect simpler lessons and the occasional wrong fact.
 - **Hindi:** Apple Intelligence doesn't support Hindi yet, so Hindi always uses Groq.
@@ -38,7 +38,7 @@ Routing lives in `app/www-src/native-shim.js` (`route()`): this phone's own less
 ## Step 1. Groq key
 
 1. console.groq.com → API Keys → Create API Key. Name it "EduVerse app".
-2. Keep it out of `app/config.json` (this repository is public; leave `"groqKey"` empty). Set it in the terminal before every build: `export EDV_GROQ_KEY=gsk_...`. The build bakes it into the app.
+2. Keep it out of `app/config.json` (this repository is public; leave `"groqKey"` empty). Put it in `app/.env` as `EDV_GROQ_KEY=gsk_...` (that file is gitignored). The build bakes it into the app.
 
 ## Step 2. Legal pages on GitHub Pages (works from an iPhone)
 
@@ -64,7 +64,7 @@ Have a qualified person read the privacy policy before launch (see "Kids and pri
 ```
 cd app
 # edit config.json first: bundleId, legalUrl, productIds
-export EDV_GROQ_KEY=gsk_...   # your Groq key (step 1); needed in every terminal you build from
+# and app/.env: EDV_GROQ_KEY=gsk_... (step 1)
 npm install
 npm run ios:add      # builds www/, creates the Xcode project, applies settings + entitlements
 npm run open         # opens Xcode
@@ -121,7 +121,7 @@ AI safety: a child-safety system instruction is added to every request (Apple In
 
 ## Files worth knowing
 
-- `app/config.json`: bundle id, Groq models (the key comes from `EDV_GROQ_KEY`), legal pages address, Game Center leaderboard id, daily limits, product ids.
+- `app/config.json`: bundle id, Groq models (the key lives in the gitignored `app/.env`), legal pages address, Game Center leaderboard id, daily limits, product ids.
 - `app/www-src/eduverse.html`: the EduVerse web app (same as the Claude version).
 - `app/www-src/native-shim.js`: AI routing (cache → Apple Intelligence → Groq), photo text, iCloud and Game Center bridges, paywall, parental gate, Grown-ups settings.
 - `app/plugins/eduverse-store/ios/Sources/EduverseStorePlugin/`: the Swift plugins.
