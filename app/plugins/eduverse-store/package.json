@@ -1,0 +1,9 @@
+{
+  "name": "eduverse-store",
+  "version": "1.0.0",
+  "description": "StoreKit 2 purchases for EduVerse (returns Apple-signed transactions for server verification).",
+  "files": ["ios/Sources", "Package.swift", "EduverseStore.podspec"],
+  "capacitor": { "ios": { "src": "ios" } },
+  "peerDependencies": { "@capacitor/core": ">=7.0.0" },
+  "license": "UNLICENSED"
+}

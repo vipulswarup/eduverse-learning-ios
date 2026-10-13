@@ -1,0 +1,23 @@
+{
+  "name": "eduverse-ios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EduVerse iOS app (Capacitor shell around the web app).",
+  "scripts": {
+    "build:www": "node scripts/build-www.js",
+    "ios:add": "node scripts/prepare.js && npm run build:www && cap add ios && node scripts/apply-ios.js",
+    "sync": "npm run build:www && cap sync ios && node scripts/apply-ios.js",
+    "open": "cap open ios",
+    "test": "node scripts/test-app.js"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "eduverse-store": "file:./plugins/eduverse-store"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
+    "@fontsource-variable/nunito": "^5.1.0",
+    "katex": "^0.16.9"
+  }
+}

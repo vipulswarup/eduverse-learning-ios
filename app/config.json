@@ -1,0 +1,17 @@
+{
+  "appName": "EduVerse",
+  "bundleId": "com.anay.eduverse",
+  "groqKey": "",
+  "groqModel": "openai/gpt-oss-120b",
+  "groqQuickModel": "openai/gpt-oss-20b",
+  "legalUrl": "https://madblox29.github.io/eduverse-legal",
+  "leaderboardId": "eduverse.weekly_xp",
+  "freeDaily": 25,
+  "proDaily": 150,
+  "productIds": [
+    "com.anay.eduverse.pro.monthly",
+    "com.anay.eduverse.pro.yearly"
+  ],
+  "version": "1.0.0",
+  "build": "2"
+}

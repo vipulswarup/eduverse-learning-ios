@@ -1,0 +1,14 @@
+{
+  "appId": "com.anay.eduverse",
+  "appName": "EduVerse",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#F3F8FF",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "server": {
+    "iosScheme": "capacitor",
+    "allowNavigation": []
+  }
+}

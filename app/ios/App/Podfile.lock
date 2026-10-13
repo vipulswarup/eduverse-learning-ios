@@ -1,0 +1,28 @@
+PODS:
+  - Capacitor (7.6.9):
+    - CapacitorCordova
+  - CapacitorCordova (7.6.9)
+  - EduverseStore (1.0.0):
+    - Capacitor
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - EduverseStore (from `../../plugins/eduverse-store`)
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  EduverseStore:
+    :path: "../../plugins/eduverse-store"
+
+SPEC CHECKSUMS:
+  Capacitor: 46067d1c8df89760dbed78780d436327d588c726
+  CapacitorCordova: 2080fc0d6bfbc9dcc0e6d88e77fa624190d343ca
+  EduverseStore: 55cb8a742c144b28c450a9655b2a72d897b78967
+
+PODFILE CHECKSUM: 5397f1a519e57ace0cb98d459dab52f1035ecbb9
+
+COCOAPODS: 1.16.2
