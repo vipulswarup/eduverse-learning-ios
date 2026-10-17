@@ -6,10 +6,11 @@ const root = path.join(__dirname, ".."), src = path.join(root, "www-src"), out =
 const cfg = JSON.parse(fs.readFileSync(path.join(root, "config.json"), "utf8"));
 try { process.loadEnvFile(path.join(root, ".env")); } catch (e) { if (e.code !== "ENOENT") throw e; }
 // AI goes straight to Groq from the phone (no EduVerse server). EDV_GROQ_BASE / EDV_GROQ_KEY override for tests.
-const GROQ = (process.env.EDV_GROQ_BASE || "https://api.groq.com").replace(/\/$/, "");
-const KEY = process.env.EDV_GROQ_KEY || cfg.groqKey || "";
+const GROQ = (process.env.EDV_GROQ_BASE || (cfg.proxyUrl ? cfg.proxyUrl : "https://api.groq.com")).replace(/\/$/, "");
+const PROXY = (cfg.proxyUrl || "").replace(/\/$/, "");
+const KEY = (PROXY && !process.env.EDV_GROQ_BASE) ? "via-proxy" : (process.env.EDV_GROQ_KEY || cfg.groqKey || "");
 if (!process.env.EDV_GROQ_BASE && !/^https:\/\//.test(GROQ)) throw new Error("Groq address must be https");
-if (!KEY || /PASTE-YOUR/.test(KEY)) console.warn("WARNING: EDV_GROQ_KEY is not set. The app will only have Apple Intelligence on supported iPhones.");
+if (!KEY || /PASTE-YOUR/.test(KEY)) console.warn("WARNING: config.json groqKey is not set. The app will only have Apple Intelligence on supported iPhones.");
 if (/YOUR-GITHUB-NAME/.test(cfg.legalUrl || "")) console.warn("WARNING: config.json legalUrl still has the example address. Put your GitHub Pages address there (see README).");
 
 let html = fs.readFileSync(path.join(src, "eduverse.html"), "utf8");
@@ -27,7 +28,7 @@ patch("katex cdn", '<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.
 
 // 2. CSP + native bridge first in <head>
 const csp = `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' ${GROQ}; object-src 'none'; base-uri 'self'; form-action 'none'`;
-patch("head meta", '<meta name="viewport"', `<meta http-equiv="Content-Security-Policy" content="${csp}">\n<script src="native-shim.js"></script>\n<meta name="viewport"`);
+patch("head meta", '<meta name="viewport"', `<meta http-equiv="Content-Security-Policy" content="${csp}">\n<script>window.__edvErrs=[];window.addEventListener("error",function(e){window.__edvErrs.push((e.message||"error")+" @"+String(e.filename||"").split("/").pop()+":"+(e.lineno||"")+":"+(e.colno||""))});</script>\n<script src="native-shim.js"></script>\n<script>document.addEventListener("DOMContentLoaded",function(){setTimeout(function(){var bad=!window.EDUVERSE_NATIVE||!window.EduNative;var cap=window.Capacitor;var nat=!!(cap&&cap.isNativePlatform&&cap.isNativePlatform());if(!bad&&nat&&!window.__edvErrs.length)return;var d=document.createElement("div");d.setAttribute("style","position:fixed;left:8px;right:8px;top:calc(8px + env(safe-area-inset-top,0px));z-index:9999;background:#7a1020;color:#fff;font:12px/1.35 monospace;padding:10px;border-radius:10px;word-break:break-word");d.textContent="EduVerse start-up problem. Screenshot this for Vipul. shim="+(window.EDUVERSE_NATIVE?"ok":"NOT RUNNING")+" capacitor="+(cap?"yes":"NO")+" native="+nat+" errors="+(window.__edvErrs.join(" | ")||"none");d.onclick=function(){d.remove()};document.body.appendChild(d)},1500)});</script>\n<meta name="viewport"`);
 patch("native html class", "<html", "<html class=\"native-build\"");
 patch("native css", "</style>\n<script src=\"katex.min.js\">", `.native-build [hidden]{display:none!important}\n</style>\n<script src="katex.min.js">`);
 

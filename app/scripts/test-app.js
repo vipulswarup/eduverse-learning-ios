@@ -52,6 +52,7 @@ const groq = http.createServer((req, res) => {
     await ctx.exposeFunction("__cloudSave", json => { icloud.json = json; icloud.modified = Date.now(); icloud.saves++; return { modified: icloud.modified }; });
     await ctx.exposeFunction("__cloudRemove", () => { icloud.json = null; icloud.removed = true; });
     await p.addInitScript(o => {
+      if (!o.noConsent) localStorage.setItem("edv.consent.v1", "1");
       if (!localStorage.getItem("eduverse.settings")) localStorage.setItem("eduverse.settings", JSON.stringify(o.settings || { onboarded: true, birthYM: o.teen ? "2008-04" : "2017-04" }));
       window.__opened = []; window.open = u => { window.__opened.push(u); return null; };
       window.__gc = { auth: false, submitted: [], added: 0 }; window.__dev = [];
@@ -80,6 +81,16 @@ const groq = http.createServer((req, res) => {
   const openSettings = async p => { await p.click("#setBtn"); await p.waitForTimeout(500); await p.evaluate(() => document.querySelectorAll("section.settings details").forEach(d => d.open = true)); };
   const gate = async p => { const q = await p.textContent(".edv-gate p:nth-of-type(2)"); const m = /(\w+) × (\w+)/.exec(q); const N = ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"]; await p.fill("#edvAns", String(N.indexOf(m[1]) * N.indexOf(m[2]))); await p.click("#edvAnsOk"); await p.waitForTimeout(300); };
 
+  // ---- 0. first launch: Terms + Privacy checkbox
+  { const F = await phone({ noConsent: true });
+    const btnDis = () => F.p.$eval("#edvAgreeGo", e => e.disabled);
+    ok(!!(await F.p.$("#edvConsent")) && /Terms of Use/.test(await txt(F.p)) && /Privacy Policy/.test(await txt(F.p)), "first launch shows the Terms and Privacy pop-up");
+    ok(await btnDis(), "Continue is disabled until the box is ticked");
+    await F.p.click("#edvAgree"); ok(!(await btnDis()), "ticking the box enables Continue");
+    await F.p.click("#edvAgreeGo"); await F.p.waitForTimeout(300);
+    ok(!(await F.p.$("#edvConsent")), "pop-up closes after agreeing");
+    await F.p.goto(site); await F.p.waitForTimeout(800); ok(!(await F.p.$("#edvConsent")), "pop-up does not return on next launch");
+    await F.ctx.close(); }
   // ---- 1. AI through Groq (no Apple Intelligence on this phone)
   let A = await phone({});
   ok(!!(await A.p.$("#topic")) && !/Claude/.test(await txt(A.p)), "opens straight to Home, no mention of Claude");

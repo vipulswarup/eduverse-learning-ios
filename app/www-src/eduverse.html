@@ -5061,12 +5061,19 @@ Return ONLY JSON: {"questions":[{"lesson":1,"q":"question","code":"optional code
   // ---------- step player: short teach cards, each followed by a question ----------
   function cleanSteps(raw){
     const out = [];
+    const ans = x => { let a = x.answer ?? x.correct ?? x.correct_answer ?? x.correctIndex; const opts = x.options;
+      if(typeof a === "string"){ const t = a.trim(); if(/^[A-Da-d]$/.test(t)) return t.toUpperCase().charCodeAt(0) - 65; if(/^\d+$/.test(t)) return +t; const k = opts.findIndex(o => String(o).trim() === t); return k; }
+      return +a; };
     (Array.isArray(raw) ? raw : []).forEach(x => {
       if(!x || typeof x !== "object") return;
-      if(x.type === "teach" && x.text){ out.push({type:"teach", title:String(x.title || "").slice(0, 60), text:String(x.text).slice(0, 900)}); }
-      else if(x.type === "quiz" && x.q && Array.isArray(x.options) && x.options.length >= 2 && Number.isInteger(+x.answer) && +x.answer >= 0 && +x.answer < x.options.length){
-        const o = x.options.slice(0, 4).map((t, k) => ({t: String(t), ok: k === +x.answer})); if(!o.some(v => v.ok)) return; shuffle(o);
-        out.push({type:"quiz", q:String(x.q).slice(0, 400), code:x.code ? String(x.code).slice(0, 600) : "", options:o.map(v => v.t), answer:o.findIndex(v => v.ok), why:String(x.why || "").slice(0, 300), hint:String(x.hint || "").slice(0, 120)});
+      const ty = String(x.type || "").toLowerCase();
+      const txt = x.text || x.content || x.body;
+      if(ty === "teach" && txt){ out.push({type:"teach", title:String(x.title || "").slice(0, 60), text:String(txt).slice(0, hasVisual(String(txt)) ? 1600 : 900)}); }
+      else if(ty === "quiz" && (x.q || x.question) && Array.isArray(x.options) && x.options.length >= 2){
+        x = Object.assign({}, x, {options: x.options.map(t => t && typeof t === "object" ? (t.text || t.t || t.label || "") : t)});
+        const ai = ans(x); if(!Number.isInteger(ai) || ai < 0 || ai >= x.options.length) return;
+        const o = x.options.slice(0, 4).map((t, k) => ({t: String(t), ok: k === ai})); if(!o.some(v => v.ok)) return; shuffle(o);
+        out.push({type:"quiz", q:String(x.q || x.question).slice(0, 400), code:x.code ? String(x.code).slice(0, 600) : "", options:o.map(v => v.t), answer:o.findIndex(v => v.ok), why:String(x.why || "").slice(0, 300), hint:String(x.hint || "").slice(0, 120)});
       }
     });
     return out;
@@ -5087,12 +5094,19 @@ Build ${kid ? "6" : "10"} steps as a list that alternates teach cards and quiz q
 TEACH RULES: each card has ONE idea only, at most ${kid ? "25" : "45"} words, in plain everyday words. When a new term appears, write it in **bold** with a plain meaning right next to it, the first time only. Use one concrete example or a familiar analogy (food, games, school, sport, phones, money). Never say "simply", "obviously" or "as we know". Never skip a step in your reasoning. ${kid ? "Start each card with one emoji." : ""}
 ${/program|code|coding|python|javascript|java\b|c\+\+|html|css|sql|rust|swift|\bgo\b|typescript/i.test(c.topic + " " + c.title) ? "This is a programming lesson: show small code in a fenced code block (at most 4 lines) inside the teach text, and tell the learner in plain words what each line does. Quiz questions should mostly be 'what will this print?' or 'which line is correct?', with the code in the quiz's \"code\" field. Use ONLY the features taught so far." : ""}
 QUIZ RULES: every quiz must be answerable from what was just taught, never a trick, with ${kid ? "3 very short options starting with an emoji" : "3 or 4 options"} where the wrong ones are the mistakes beginners really make. "why" is a friendly one-sentence explanation of the right answer (say what the wrong idea gets mixed up). "hint" is a short nudge (max 10 words) that does not give the answer away.
-You may put ONE built-in visual tag on its own line inside a teach text when it truly helps, chosen from: ${"[[flow: A -> B -> C]], [[timeline: 1789 | event]], [[fraction: 3/4]], [[graph: y = 2x + 1; x -5..5]], [[atom: 6]], [[circuit: series]]"}. Do not draw SVG.
+VISUALS: put a built-in picture tag on its own last line of at least ${kid ? "2" : "3"} of the teach texts, for every idea that can be pictured (a process, order in time, parts of something, numbers, a graph, an atom, a circuit). Use exactly this tag format, one tag per card, tags only (do not draw SVG): ${"[[flow: Sunlight -> Photosynthesis -> Glucose]], [[timeline: 1789 | Storming of the Bastille; 1793 | The Terror begins]], [[fraction: 3/4]], [[graph: y = 2x + 1; x -5..5]], [[atom: 6]], [[circuit: series]], [[piano: C4 E4 G4]]"}. The tag is extra and does not count towards the word limit.
 Return ONLY JSON, no markdown fences:
 {"steps":[{"type":"teach","title":"2-4 word title","text":"markdown"},{"type":"quiz","q":"question","code":"optional code or empty string","options":["A","B","C"],"answer":0,"why":"explanation","hint":"nudge"}]}
 Inside JSON strings escape every backslash and write newlines as \\n.`, {modelTier:"default", cache:!note});
     const steps = cleanSteps(res && res.steps);
     if(steps.filter(x => x.type === "quiz").length < 2 || steps.filter(x => x.type === "teach").length < 2) throw {message:"the lesson came back incomplete"};
+    if(!steps.some(x => x.type === "teach" && hasVisual(x.text))){
+      try{
+        const tgt = steps.filter(x => x.type === "teach")[1] || steps.find(x => x.type === "teach");
+        const r = await sample(`You are choosing ONE picture to help a learner understand a lesson card.\nLesson: "${L.title}" in the course "${c.title}".\nCard text:\n---\n${tgt.text.slice(0, 900)}\n---\n${VISUALS}\nReply with ONLY a single built-in [[...]] line (no SVG) that shows the main idea of this card.`, {modelTier:"quick", cache:false});
+        const m = /\[\[[a-z-]+[^\]\n]*\]\]/i.exec(r.text || ""); if(m) tgt.text += "\n\n" + m[0];
+      }catch(e){}
+    }
     return steps;
   }
   function renderSteps(c, i){

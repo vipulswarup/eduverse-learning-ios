@@ -259,7 +259,7 @@
   var sample = function (input, o) { return route(input, o, false); };
   sample.json = async function (input, o) {
     o = Object.assign({}, o); delete o.onText;
-    var r = await route(input, o, true), v = parseJson(r.text);
+    var r = await route(input, o, true), v = parseJson(r.text); window.__edvLast = r.source + ": " + String(r.text).slice(0, 300);
     if (v === undefined) {
       var msgs = toMessages(input).concat([{ role: "assistant", content: r.text.slice(0, 4000) }, { role: "user", content: "That wasn't valid JSON. Reply again with ONLY the JSON, nothing before or after it." }]);
       var t = await askGroq(msgs, o, true); v = parseJson(t);
@@ -430,7 +430,9 @@
       '<div class="set-row"><div class="lab"><b>Restore purchases</b><small>Already subscribed on another device? Get it back here.</small></div><button class="btn ghost" id="edvRs" type="button">Restore</button></div>' +
       '<div class="set-row"><div class="lab"><b>Privacy Policy</b></div><button class="btn ghost" data-l="privacy" type="button">Open</button></div>' +
       '<div class="set-row"><div class="lab"><b>Terms of Use</b></div><button class="btn ghost" data-l="terms" type="button">Open</button></div>' +
-      '<div class="set-row"><div class="lab"><b>Help and contact</b></div><button class="btn ghost" data-l="support" type="button">Open</button></div>' +
+      '<div class="set-row"><div class="lab"><b>Help</b></div><button class="btn ghost" data-l="support" type="button">Open</button></div>' +
+      '<div class="set-row"><div class="lab"><b>App check</b><small id="edvDiag" data-noi18n>Checking…</small></div></div>' +
+      '<div class="set-row"><div class="lab"><b>Last AI reply</b><small data-noi18n style="word-break:break-word">' + esc(window.__edvLast || "none yet") + '</small></div></div>' +
       '<div class="set-row"><div class="lab"><b>Delete all my data</b><small>Erases courses, XP and settings from this device and your iCloud.</small></div><button class="btn ghost" id="edvWipe" type="button">Delete</button></div>' +
       "</div>";
     grp.appendChild(det); s.appendChild(grp);
@@ -444,11 +446,38 @@
     var dt = grp.querySelector("#edvDevT");
     dt.onclick = function () { var on = !onDevicePref(); LS.set(ON_KEY, on ? "1" : "0"); dt.setAttribute("aria-checked", String(on)); };
     devStatus().then(function (d) { var el = document.getElementById("edvDev"); if (!el) return; if (!d.ok) { el.textContent = "Not available on this iPhone (needs iOS 26 and an Apple Intelligence iPhone with it turned on). The online AI is used instead."; dt.disabled = true; dt.setAttribute("aria-checked", "false"); } });
+    (function () {
+      var el = document.getElementById("edvDiag"); if (!el) return;
+      var key = CFG.groqKey && !/^__EDV_/.test(CFG.groqKey);
+      var base = ["Native: " + (isNative ? "yes" : "NO"), "AI key: " + (key ? "set" : "MISSING"), "Model: " + CFG.model,
+        "Plugins: " + [["Store", Store], ["AI", AI], ["iCloud", Cloud], ["GameCenter", GC], ["OCR", OCR], ["Speech", Speech]].map(function (x) { return x[0] + (x[1] ? "+" : "-"); }).join(" ")];
+      el.textContent = base.join(" · ");
+      var short = function (x) { try { return JSON.stringify(x).slice(0, 60); } catch (e) { return "?"; } };
+      var chk = function (name, P) { return P && isNative ? P.status().then(function (r) { return name + " " + short(r); }).catch(function (e) { return name + " error " + ((e && (e.code || e.message)) || ""); }) : Promise.resolve(name + " n/a"); };
+      Promise.all([chk("iCloud", Cloud), chk("GameCenter", GC)]).then(function (a) { el.textContent = base.concat(a).join(" · "); });
+    })();
     grp.querySelector("#edvWipe").onclick = deleteMyData;
     grp.querySelector("#edvRs").onclick = async function () { if (!(await parentalGate())) return; try { toast((await restore()) ? "Pro restored!" : "No purchase found to restore"); } catch (e) { toast(e.message || "Couldn't restore"); } };
     grp.querySelectorAll("[data-l]").forEach(function (b) { b.onclick = function () { openLink(b.dataset.l); }; });
   }
   new MutationObserver(function () { injectSettings(); }).observe(document.documentElement, { childList: true, subtree: true });
+
+  // ---------- first launch: agree to the Terms and Privacy Policy ----------
+  var CONSENT_KEY = "edv.consent.v1";
+  function showConsent() {
+    if (LS.get(CONSENT_KEY) || document.getElementById("edvConsent")) return;
+    var o = overlay('<h2>Welcome to EduVerse</h2><p>Before you start, a grown-up should read how EduVerse works and agree. If you are under 13, please ask a grown-up to help.</p>' +
+      '<p class="edv-fine" style="font-size:.95rem"><button class="edv-lk" data-l="terms" type="button">Terms of Use</button> · <button class="edv-lk" data-l="privacy" type="button">Privacy Policy</button></p>' +
+      '<label style="display:flex;gap:.7rem;align-items:flex-start;margin:.9rem 0;color:var(--ink);font-weight:700;line-height:1.35;cursor:pointer"><input type="checkbox" id="edvAgree" style="width:26px;height:26px;flex:none;margin-top:2px"><span>I have read and agree to the Terms of Use and the Privacy Policy.</span></label>' +
+      '<button class="btn" id="edvAgreeGo" type="button" disabled>Continue</button>');
+    o.el.id = "edvConsent"; o.el.dataset.sticky = "1"; o.el.style.zIndex = 400; o.el.style.alignItems = "center";
+    o.card.style.borderRadius = "24px"; o.card.style.margin = "0 12px";
+    var box = o.card.querySelector("#edvAgree"), go = o.card.querySelector("#edvAgreeGo");
+    box.onchange = function () { go.disabled = !box.checked; };
+    go.onclick = function () { if (!box.checked) return; LS.set(CONSENT_KEY, String(Date.now())); o.close(); };
+    o.card.querySelectorAll(".edv-lk").forEach(function (b) { b.onclick = function () { openLink(b.dataset.l); }; });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", showConsent); else showConsent();
 
   window.EduNative = { aiStats: stats, deviceAI: devStatus, state: state, showPaywall: showPaywall, refreshUsage: refreshUsage, parentalGate: parentalGate, isNative: isNative };
 

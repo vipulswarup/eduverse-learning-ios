@@ -13,5 +13,6 @@
     "com.anay.eduverse.pro.yearly"
   ],
   "version": "1.0.0",
-  "build": "3"
+  "build": "4",
+  "proxyUrl": "https://eduverse-ai.6vzr4tyy66.workers.dev"
 }

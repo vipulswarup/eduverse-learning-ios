@@ -128,3 +128,10 @@ AI safety: a child-safety system instruction is added to every request (Apple In
 - `app/scripts/build-www.js`: builds the app's web files from the web app (bundles fonts and maths, removes outside requests, fills in config).
 - `app/scripts/apply-ios.js`: Info.plist texts, iPhone-only portrait, entitlements (iCloud + Game Center), privacy manifest, icon.
 - `legal-site/`: the pages for GitHub Pages.
+
+## Hide the Groq key (Cloudflare Worker)
+1. Cloudflare dashboard → Workers & Pages → Create → Hello World → Deploy, then Edit code, paste `proxy/worker.js`, Deploy.
+2. Worker → Settings → Variables and Secrets → Add → type Secret, name `GROQ_KEY`, value = your Groq key.
+3. Put the Worker address (https://….workers.dev, no trailing slash) in `app/config.json` as `proxyUrl`, delete the `groqKey` value, run `npm run sync`.
+
+Alternative (command line, from the `proxy` folder): `npx wrangler login`, `npx wrangler secret put GROQ_KEY`, `npx wrangler deploy`.
