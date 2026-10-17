@@ -17,6 +17,7 @@
     quickModel: "__EDV_GROQ_QUICK__",
     products: "__EDV_PRODUCTS__".split(",").filter(Boolean),
     legal: "__EDV_LEGAL__".replace(/\/+$/, ""),
+    docs: "__EDV_LEGAL_DOCS__",
     leaderboard: "__EDV_LEADERBOARD__",
     freeDaily: +"__EDV_FREE__" || 25,
     proDaily: +"__EDV_PRO__" || 150
@@ -330,6 +331,7 @@
     ".edv-plan small{display:block;font-weight:600;color:var(--muted)}.edv-plan:disabled{opacity:.6}" +
     ".edv-fine{font-size:.78rem;line-height:1.4}.edv-fine a,.edv-lk{color:var(--a1);background:none;border:0;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}" +
     ".edv-gate input{width:100%;font-size:1.3rem;text-align:center;padding:.7rem;border-radius:12px;border:2px solid var(--line2);background:var(--panel);color:var(--ink)}" +
+    ".edv-doc h1{font-size:1.4rem;margin:.2rem 0}.edv-doc h2{font-size:1.05rem;margin:1.2rem 0 .3rem}.edv-doc p,.edv-doc li{color:var(--ink);line-height:1.5;margin:.35rem 0}.edv-doc ul{padding-left:1.2rem}.edv-doc a{color:var(--a1)}" +
     ".edv-meter{height:10px;border-radius:99px;background:var(--line);overflow:hidden;margin:.5rem 0}.edv-meter i{display:block;height:100%;background:var(--a1)}";
   document.head.appendChild(css);
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
@@ -359,8 +361,19 @@
       inp.onkeydown = function (e) { if (e.key === "Enter") ov.card.querySelector("#edvAnsOk").click(); };
     });
   }
+  // The Terms, Privacy Policy and Help are bundled in the app and open right here.
+  // Terms / Privacy / Help are bundled in the app and read here (no browser, no internet needed).
   function openLink(page) {
-    parentalGate().then(function (ok) { if (ok) window.open(CFG.legal + "/" + page + ".html", "_blank"); });
+    var o = overlay('<div class="edv-doc" style="max-height:64vh;overflow:auto;-webkit-overflow-scrolling:touch;color:var(--ink);line-height:1.5"><p>Loading…</p></div><button class="btn" type="button" id="edvDocX">Close</button>');
+    o.el.style.zIndex = 500; o.el.dataset.sticky = "1";
+    o.card.querySelector("#edvDocX").onclick = o.close;
+    var box = o.card.querySelector(".edv-doc");
+    fetch("legal-" + page + ".html").then(function (r) { if (!r.ok) throw 0; return r.text(); }).then(function (h) {
+      box.innerHTML = h;
+      box.querySelectorAll("h1,h2").forEach(function (e) { e.style.margin = ".8rem 0 .3rem"; });
+      box.querySelectorAll("p,li").forEach(function (e) { e.style.color = "var(--ink)"; });
+      box.querySelectorAll("small").forEach(function (e) { e.style.color = "var(--muted)"; });
+    }).catch(function () { box.innerHTML = "<p>Couldn't load this page. Please try again.</p>"; });
   }
 
   function showPaywall() {

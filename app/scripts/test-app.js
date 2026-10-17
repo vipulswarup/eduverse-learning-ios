@@ -86,6 +86,9 @@ const groq = http.createServer((req, res) => {
     const btnDis = () => F.p.$eval("#edvAgreeGo", e => e.disabled);
     ok(!!(await F.p.$("#edvConsent")) && /Terms of Use/.test(await txt(F.p)) && /Privacy Policy/.test(await txt(F.p)), "first launch shows the Terms and Privacy pop-up");
     ok(await btnDis(), "Continue is disabled until the box is ticked");
+    await F.p.click("#edvConsent [data-l='terms']"); await F.p.waitForTimeout(500);
+    ok(/Terms of Use/.test(await F.p.textContent(".edv-doc")) && !(await F.p.$(".edv-gate")), "Terms open from the first-launch pop-up, on top of it");
+    await F.p.click("#edvDocX"); await F.p.waitForTimeout(200);
     await F.p.click("#edvAgree"); ok(!(await btnDis()), "ticking the box enables Continue");
     await F.p.click("#edvAgreeGo"); await F.p.waitForTimeout(300);
     ok(!(await F.p.$("#edvConsent")), "pop-up closes after agreeing");
@@ -135,9 +138,10 @@ const groq = http.createServer((req, res) => {
   ok(/iCloud sync/.test(await txt(A.p)), "Settings shows iCloud sync");
   await A.p.click("#clNow"); await A.p.waitForTimeout(800);
   ok(icloud.saves > 0 && /Groq course/.test(icloud.json || ""), "progress saved to iCloud");
-  // legal links go to the GitHub Pages address after the grown-up question
-  await A.p.evaluate(() => document.querySelectorAll("section.settings details").forEach(d => d.open = true)); await A.p.click("[data-l='privacy']"); await A.p.waitForTimeout(300); await gate(A.p);
-  ok((await A.p.evaluate(() => window.__opened))[0] === "https://legal.example/privacy.html", "Privacy Policy opens the hosted page after a grown-up check");
+  // legal pages are read inside the app, no browser and no grown-up question
+  await A.p.evaluate(() => document.querySelectorAll("section.settings details").forEach(d => d.open = true)); await A.p.click("[data-l='privacy']"); await A.p.waitForTimeout(500);
+  ok(/Privacy Policy/.test(await A.p.textContent(".edv-doc")) && !(await A.p.$(".edv-gate")), "Privacy Policy opens inside the app");
+  await A.p.click("#edvDocX"); ok(!(await A.p.$(".edv-doc")), "closing the policy returns to the app");
 
   // ---- 2. second iPhone, same Apple ID: progress arrives from iCloud
   let B = await phone({});

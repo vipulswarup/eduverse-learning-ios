@@ -49,6 +49,14 @@ let shim = fs.readFileSync(path.join(src, "native-shim.js"), "utf8");
 const fill = { __EDV_GROQ_KEY__: KEY, __EDV_GROQ_BASE__: GROQ, __EDV_GROQ_MODEL__: cfg.groqModel || "openai/gpt-oss-120b", __EDV_GROQ_QUICK__: cfg.groqQuickModel || "openai/gpt-oss-20b",
   __EDV_PRODUCTS__: (process.env.EDV_PRODUCTS || (cfg.productIds || []).join(",")), __EDV_LEGAL__: process.env.EDV_LEGAL || cfg.legalUrl || "", __EDV_LEADERBOARD__: cfg.leaderboardId || "", __EDV_FREE__: String(process.env.EDV_FREE_DAILY || cfg.freeDaily || 25), __EDV_PRO__: String(process.env.EDV_PRO_DAILY || cfg.proDaily || 150) };
 for (const [k, v] of Object.entries(fill)) shim = shim.split(k).join(String(v).replace(/[\\"]/g, ""));
+// legal pages are bundled so they open inside the app (no web page, no link-out)
+const docs = {};
+for (const n of ["privacy", "terms", "support"]) {
+  const f = path.join(root, "..", "legal-site", n + ".html");
+  if (!fs.existsSync(f)) { console.warn("WARNING: legal-site/" + n + ".html missing"); continue; }
+  const m = /<body[^>]*>([\s\S]*?)<\/body>/.exec(fs.readFileSync(f, "utf8")); if (m) docs[n] = m[1].trim();
+}
+shim = shim.split('"__EDV_LEGAL_DOCS__"').join(JSON.stringify(docs));
 fs.writeFileSync(path.join(out, "native-shim.js"), shim);
 
 // KaTeX + Nunito from node_modules (installed by `npm install`)
@@ -66,4 +74,12 @@ if (fs.existsSync(fdir)) {
 }
 if (!fontCss) console.warn("WARNING: Nunito font not found; the app will use the system font. Run npm install.");
 fs.writeFileSync(path.join(out, "fonts.css"), fontCss);
+// legal pages are bundled so they can be read inside the app (no browser, no internet)
+for (const pg of ["terms", "privacy", "support"]) {
+  const f = path.join(root, "..", "legal-site", pg + ".html");
+  if (!fs.existsSync(f)) continue;
+  let h = fs.readFileSync(f, "utf8"); const i = h.search(/<\/head>/i); if (i >= 0) h = h.slice(i + 7);
+  h = h.replace(/<\/?(body|html)[^>]*>/gi, "").replace(/<a\s[^>]*>([\s\S]*?)<\/a>/gi, "$1").replace(/<script[\s\S]*?<\/script>/gi, "");
+  fs.writeFileSync(path.join(out, "legal-" + pg + ".html"), h);
+}
 console.log("Built www/ (AI: Groq + Apple Intelligence; sync: iCloud; friends: Game Center)");
