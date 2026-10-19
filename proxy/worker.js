@@ -14,11 +14,13 @@ function limited(ip) {
   if (hits.size > 5000) hits.clear();
   return false;
 }
-const json = (o, status) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json" } });
+const CORS = { "access-control-allow-origin": "*", "access-control-allow-methods": "POST, OPTIONS", "access-control-allow-headers": "content-type, authorization", "access-control-max-age": "86400" };
+const json = (o, status) => new Response(JSON.stringify(o), { status, headers: Object.assign({ "content-type": "application/json" }, CORS) });
 
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     if (req.method !== "POST" || url.pathname !== "/openai/v1/chat/completions") return json({ error: { message: "Not found" } }, 404);
     if (!env.GROQ_KEY) return json({ error: { message: "Proxy not set up" } }, 500);
     const ip = req.headers.get("cf-connecting-ip") || "unknown";
@@ -34,6 +36,6 @@ export default {
       headers: { "content-type": "application/json", authorization: "Bearer " + env.GROQ_KEY },
       body: JSON.stringify(body)
     });
-    return new Response(up.body, { status: up.status, headers: { "content-type": up.headers.get("content-type") || "application/json", "cache-control": "no-store" } });
+    return new Response(up.body, { status: up.status, headers: Object.assign({ "content-type": up.headers.get("content-type") || "application/json", "cache-control": "no-store" }, CORS) });
   }
 };

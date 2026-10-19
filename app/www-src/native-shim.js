@@ -24,7 +24,7 @@
   };
   var LS = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }, del: function (k) { try { localStorage.removeItem(k); } catch (e) {} } };
   var cap = window.Capacitor || null;
-  var isNative = !!(cap && cap.isNativePlatform && cap.isNativePlatform());
+  var isNative = !!(cap && cap.isNativePlatform && cap.isNativePlatform()) || (!!cap && /^capacitor:$/.test(location.protocol));
   var plug = function (name) { return cap && cap.registerPlugin ? cap.registerPlugin(name) : null; };
   var Store = plug("EduverseStore"), AI = plug("EduverseAI"), Cloud = plug("EduverseCloud"), GC = plug("EduverseGameCenter"), OCR = plug("EduverseOCR"), Speech = plug("EduverseSpeech");
 
