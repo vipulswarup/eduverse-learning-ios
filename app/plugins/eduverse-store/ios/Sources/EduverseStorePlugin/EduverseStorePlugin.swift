@@ -84,7 +84,13 @@ public class EduverseStorePlugin: CAPPlugin, CAPBridgedPlugin {
                     call.reject("That plan isn't available right now.")
                     return
                 }
-                let result = try await product.purchase()
+                // The app uses the UIScene life cycle, so show the purchase sheet in this window's scene (iOS 17+).
+                let result: Product.PurchaseResult
+                if #available(iOS 17.0, *), let scene = await MainActor.run(body: { self.bridge?.viewController?.view.window?.windowScene }) {
+                    result = try await product.purchase(confirmIn: scene)
+                } else {
+                    result = try await product.purchase()
+                }
                 switch result {
                 case .success(let verification):
                     switch verification {

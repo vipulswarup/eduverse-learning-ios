@@ -369,16 +369,27 @@
   // ---------- purchases (StoreKit 2, checked on the device) ----------
   function applyActive(r) { var a = (r && r.active) || []; setPlan(a.some(function (id) { return CFG.products.indexOf(id) >= 0; }) ? "pro" : "free"); return state.plan === "pro"; }
   function syncEntitlements() { return Store ? Store.entitlements().then(applyActive).catch(function () {}) : Promise.resolve(); }
-  function loadProducts() {
-    if (!Store || !CFG.products.length) return Promise.resolve([]);
-    if (state.products) return Promise.resolve(state.products);
-    return Store.products({ ids: CFG.products }).then(function (r) { state.products = (r && r.products) || []; return state.products; }).catch(function () { return []; });
+  // StoreKit can wait forever when the App Store is unreachable, so never wait on it without a time limit.
+  function withTimeout(p, ms) {
+    return new Promise(function (resolve, reject) {
+      var t = setTimeout(function () { reject(err("timeout", "The App Store took too long to answer. Check your connection and try again.")); }, ms);
+      p.then(function (v) { clearTimeout(t); resolve(v); }, function (e) { clearTimeout(t); reject(e); });
+    });
+  }
+  function loadProducts(force) {
+    if (!Store || !CFG.products.length) { state.products = []; state.productsError = ""; return Promise.resolve([]); }
+    if (!force && state.products && state.products.length) return Promise.resolve(state.products);
+    state.products = null; state.productsError = "";
+    return withTimeout(Store.products({ ids: CFG.products }), 15000)
+      .then(function (r) { state.products = (r && r.products) || []; return state.products; })
+      .catch(function (e) { state.products = []; state.productsError = (e && e.message) || "Couldn't load prices. Check your connection and try again."; return []; });
   }
   async function buy(id) {
     if (!Store) throw err("no_store", "Purchases only work in the iPhone app.");
     var r = await Store.purchase({ id: id });
     if (r.status === "cancelled") return "cancelled";
     if (r.status === "pending") return "pending";
+    if (r.status === "success" && CFG.products.indexOf(r.productId) >= 0) { setPlan("pro"); return "pro"; }
     await syncEntitlements();
     return state.plan === "pro" ? "pro" : "failed";
   }
@@ -460,18 +471,20 @@
         (pro ? "" :
           '<div class="edv-plans">' + (prods.length ? prods.map(function (p) {
             return '<button class="edv-plan" type="button" data-id="' + esc(p.id) + '"><span>' + esc(p.displayName || "EduVerse Pro") + "<small>" + esc(p.period || "") + " · renews automatically</small></span><span>" + esc(p.displayPrice || "") + "</span></button>";
-          }).join("") : '<p class="edv-fine">' + (Store ? "Loading prices…" : "Pro is available in the iPhone app.") + "</p>") + "</div>" +
+          }).join("") : '<p class="edv-fine">' + (!Store ? "Pro is available in the iPhone app." : state.products === null ? "Loading prices…" : (state.productsError ? esc(state.productsError) : "Pro isn't available just yet. Please try again later.")) + "</p>" + (Store && state.products !== null ? '<button class="btn ghost" id="edvRetry" type="button">Try again</button>' : "")) + "</div>" +
           '<p class="edv-fine">A grown-up must confirm. Payment is charged to the Apple ID account at confirmation. The subscription renews automatically unless it is cancelled at least 24 hours before the end of the period. Manage or cancel it any time in Settings → Apple ID → Subscriptions.</p>') +
         (pro ? "" : '<button class="btn ghost" id="edvRestore" type="button">Restore purchases</button>') +
         '<p class="edv-fine" style="text-align:center"><button class="edv-lk" data-l="terms" type="button">Terms of Use</button> · <button class="edv-lk" data-l="privacy" type="button">Privacy Policy</button></p>' +
         '<button class="btn ghost" id="edvClose" type="button">' + (pro ? "Close" : "Maybe later") + "</button>";
       o.card.querySelector("#edvClose").onclick = o.close;
+      var rt = o.card.querySelector("#edvRetry");
+      if (rt) rt.onclick = function () { loadProducts(true).then(draw); draw(); };
       o.card.querySelectorAll(".edv-lk").forEach(function (b) { b.onclick = function () { openLink(b.dataset.l); }; });
       o.card.querySelectorAll(".edv-plan").forEach(function (b) {
         b.onclick = async function () {
           if (!(await parentalGate())) return;
           o.card.querySelectorAll("button").forEach(function (x) { x.disabled = true; });
-          try { var res = await buy(b.dataset.id); if (res === "pro") toast("Welcome to EduVerse Pro!"); else if (res === "pending") toast("Waiting for approval from your grown-up"); }
+          try { var res = await buy(b.dataset.id); if (res === "pro") toast("Welcome to EduVerse Pro!"); else if (res === "pending") toast("Waiting for approval from your grown-up"); else if (res === "failed") toast("We couldn't confirm the purchase yet. Try Restore purchases."); }
           catch (e) { toast(e.message || "Purchase didn't go through"); }
           draw();
         };

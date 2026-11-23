@@ -90,6 +90,11 @@ if (exists(pod)) { let p = read(pod), o = p; p = p.replace(/platform :ios, '[\d.
 // ---- privacy manifest
 const priv = path.join(ios, "App", "PrivacyInfo.xcprivacy");
 fs.copyFileSync(path.join(root, "ios-overlay", "PrivacyInfo.xcprivacy"), priv); did.push("PrivacyInfo.xcprivacy");
+// StoreKit test configuration + shared scheme that uses it (Run in Xcode / simulator shows test prices; Archive/TestFlight use the real App Store).
+fs.copyFileSync(path.join(root, "ios-overlay", "EduVerse.storekit"), path.join(ios, "EduVerse.storekit"));
+const schemeDir = path.join(ios, "App.xcodeproj", "xcshareddata", "xcschemes");
+fs.mkdirSync(schemeDir, { recursive: true });
+fs.copyFileSync(path.join(root, "ios-overlay", "App.xcscheme"), path.join(schemeDir, "App.xcscheme")); did.push("EduVerse.storekit + App scheme");
 
 // ---- icon and launch image
 const assets = path.join(ios, "App", "Assets.xcassets");
