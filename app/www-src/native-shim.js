@@ -13,6 +13,7 @@
   var CFG = {
     groqKey: "__EDV_GROQ_KEY__",
     groqBase: "__EDV_GROQ_BASE__",
+    api: "__EDV_API__".replace(/\/+$/, ""),
     model: "__EDV_GROQ_MODEL__",
     quickModel: "__EDV_GROQ_QUICK__",
     products: "__EDV_PRODUCTS__".split(",").filter(Boolean),
@@ -25,7 +26,19 @@
   var LS = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }, del: function (k) { try { localStorage.removeItem(k); } catch (e) {} } };
   var cap = window.Capacitor || null;
   var isNative = !!(cap && cap.isNativePlatform && cap.isNativePlatform()) || (!!cap && /^capacitor:$/.test(location.protocol));
-  var plug = function (name) { return cap && cap.registerPlugin ? cap.registerPlugin(name) : null; };
+  // Normally Capacitor's JS library provides registerPlugin. This page has no bundler, so when it is missing we talk to the
+  // native side directly (Capacitor.Plugins, or nativePromise for any plugin the app registered).
+  var plug = function (name) {
+    if (!cap) return null;
+    try {
+      if (cap.registerPlugin) return cap.registerPlugin(name);
+      if (cap.Plugins && cap.Plugins[name]) return cap.Plugins[name];
+      if (cap.nativePromise && (cap.PluginHeaders || []).some(function (h) { return h && h.name === name; })) {
+        return new Proxy({}, { get: function (_, m) { if (m === "then") return undefined; if (m === "addListener") return function () { return { remove: function () {} }; }; return function (o) { return cap.nativePromise(name, String(m), o || {}); }; } });
+      }
+    } catch (e) {}
+    return null;
+  };
   var Store = plug("EduverseStore"), AI = plug("EduverseAI"), Cloud = plug("EduverseCloud"), GC = plug("EduverseGameCenter"), OCR = plug("EduverseOCR"), Speech = plug("EduverseSpeech");
 
   function err(code, message) { var e = new Error(message || code); e.code = code; e.friendly = true; return e; }
@@ -274,7 +287,7 @@
   window.EDUVERSE_NATIVE = true;
 
   // ---------- iCloud sync (the app's account code uses this) ----------
-  if (Cloud && isNative) {
+  if (Cloud && isNative && !CFG.api) {
     window.EduNativeCloud = {
       status: function () { return Cloud.status().catch(function () { return { available: false, status: "unknown" }; }); },
       load: function () { return Cloud.load().then(function (r) { var j = r && r.json; return { data: j ? JSON.parse(j) : null, modified: (r && r.modified) || 0 }; }); },
@@ -284,7 +297,7 @@
   }
 
   // ---------- Game Center (the app's friends screen uses this) ----------
-  if (GC && isNative) {
+  if (GC && isNative && !CFG.api) {
     window.EduNativeGC = {
       leaderboard: CFG.leaderboard,
       status: function () { return GC.status(); },
@@ -294,6 +307,62 @@
       friendScores: function () { return GC.friendScores({ leaderboard: CFG.leaderboard }).then(function (r) { return (r && r.entries) || []; }); },
       addFriends: function () { return GC.addFriends(); },
       openDashboard: function () { return GC.openDashboard(); }
+    };
+  }
+
+  // ---------- EduVerse accounts, friends, leagues, challenges and quests (EduVerse's own server) ----------
+  if (CFG.api) {
+    var TOK = "edv.tok";
+    var call = function (method, body) {
+      var headers = { "content-type": "application/json" }, t = LS.get(TOK);
+      if (t) headers.authorization = "Bearer " + t;
+      return fetch(CFG.api + "/api/" + method, { method: "POST", headers: headers, body: JSON.stringify(body || {}) })
+        .catch(function () { throw err("offline", "No internet connection. Connect and try again."); })
+        .then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (j) {
+            if (r.ok && j && j.ok) return j;
+            var e = (j && j.error) || {};
+            if (e.code === "not_logged_in") LS.del(TOK);
+            throw err(e.code || "server", e.message || "Something went wrong. Try again.");
+          });
+        });
+    };
+    var keep = function (j) { if (j && j.token) LS.set(TOK, j.token); return j; };
+    var res = function (j) { return j.result !== undefined ? j.result : j; };
+    window.EduNativeSocial = {
+      accountSignup: function (u, p, teen, holder) { return call("signup", { username: u, password: p, teen: !!teen, holder: holder || "adult" }).then(keep); },
+      accountLogin: function (u, p, totp) { return call("login", { username: u, password: p, totp: totp || "" }).then(keep); },
+      accountReset: function (u, code, pw, totp) { return call("reset", { username: u, code: code, newPassword: pw, totp: totp || "" }).then(keep); },
+      accountLogout: function () { return call("logout").catch(function () {}).then(function () { LS.del(TOK); }); },
+      accountMe: function () { return call("me"); },
+      accountData: function () { return call("data"); },
+      accountPush: function (data, dataAt, stats) { return call("push", { data: data, dataAt: dataAt, stats: stats }); },
+      accountPassword: function (o, n) { return call("password", { old: o, "new": n }); },
+      accountDelete: function (pw) { return call("delete", { password: pw }).then(function (j) { LS.del(TOK); return j; }); },
+      totpBegin: function () { return call("totpBegin"); },
+      totpEnable: function (code) { return call("totpEnable", { code: code }); },
+      totpDisable: function (pw, code) { return call("totpDisable", { password: pw, code: code }); },
+      friendsList: function () { return call("friendsList"); },
+      friendsSearch: function (q) { return call("friendsSearch", { q: q }).then(res); },
+      friendsRequest: function (u) { return call("friendsRequest", { username: u }); },
+      friendsRespond: function (u, accept) { return call("friendsRespond", { username: u, accept: !!accept }); },
+      friendsRemove: function (u) { return call("friendsRemove", { username: u }); },
+      friendsBlock: function (u) { return call("friendsBlock", { username: u }); },
+      friendsReport: function (u) { return call("friendsReport", { username: u }); },
+      questCreate: function (u, target) { return call("questCreate", { username: u, target: target }); },
+      questRespond: function (id, accept) { return call("questRespond", { id: id, accept: !!accept }); },
+      questLeave: function (id) { return call("questLeave", { id: id }); },
+      challengeCreate: function (payload) { return call("challengeCreate", { payload: payload }); },
+      challengeGet: function (code) { return call("challengeGet", { code: code }).then(res); },
+      challengeSend: function (code, u) { return call("challengeSend", { code: code, username: u }); },
+      leagues: function () { return call("leagues").then(res); },
+      leagueCreate: function (name, nick) { return call("leagueCreate", { name: name, nick: nick }); },
+      leagueJoin: function (code, nick) { return call("leagueJoin", { code: code, nick: nick }); },
+      leagueLeave: function (code) { return call("leagueLeave", { code: code }); },
+      leagueBoard: function (code) { return call("leagueBoard", { code: code }).then(res); },
+      leagueScore: function (xp, week, nick) { return call("leagueScore", { xp: xp, week: week, nick: nick }); },
+      leagueReport: function (code, id) { return call("leagueReport", { code: code, id: id }); },
+      leagueRemove: function (code, id) { return call("leagueRemove", { code: code, id: id }); }
     };
   }
 
@@ -420,7 +489,7 @@
 
   async function deleteMyData() {
     if (!(await parentalGate())) return;
-    var o = overlay("<h2>Delete all my data?</h2><p>This erases your courses, XP and settings on this device and the copy in your iCloud. It can't be undone. Game Center friends stay in Game Center. An active subscription is not cancelled; manage that in your Apple ID settings.</p>" +
+    var o = overlay("<h2>Delete all my data?</h2><p>This erases your courses, XP and settings on this device" + (CFG.api ? ". Your EduVerse account and friends stay until you delete the account in Settings, then Account" : " and the copy in your iCloud") + ". It can't be undone. An active subscription is not cancelled; manage that in your Apple ID settings.</p>" +
       '<button class="btn" id="edvDel" type="button" style="background:var(--danger)">Delete everything</button><button class="btn ghost" id="edvKeep" type="button">Keep my data</button>');
     o.card.querySelector("#edvKeep").onclick = o.close;
     o.card.querySelector("#edvDel").onclick = async function () {
@@ -463,7 +532,7 @@
       var el = document.getElementById("edvDiag"); if (!el) return;
       var key = CFG.groqKey && !/^__EDV_/.test(CFG.groqKey);
       var base = ["Native: " + (isNative ? "yes" : "NO"), "AI key: " + (key ? "set" : "MISSING"), "Model: " + CFG.model,
-        "Plugins: " + [["Store", Store], ["AI", AI], ["iCloud", Cloud], ["GameCenter", GC], ["OCR", OCR], ["Speech", Speech]].map(function (x) { return x[0] + (x[1] ? "+" : "-"); }).join(" ")];
+        "Bridge: " + (cap ? ((cap.registerPlugin ? "reg " : "") + (cap.nativePromise ? "np " : "") + "headers=" + ((cap.PluginHeaders || []).map(function (h) { return h && h.name; }).join("/") || "none") + " plugins=" + Object.keys(cap.Plugins || {}).join("/")) : "no Capacitor"), "Plugins: " + [["Store", Store], ["AI", AI], ["iCloud", Cloud], ["GameCenter", GC], ["OCR", OCR], ["Speech", Speech]].map(function (x) { return x[0] + (x[1] ? "+" : "-"); }).join(" ")];
       el.textContent = base.join(" · ");
       var short = function (x) { try { return JSON.stringify(x).slice(0, 60); } catch (e) { return "?"; } };
       var chk = function (name, P) { return P && isNative ? P.status().then(function (r) { return name + " " + short(r); }).catch(function (e) { return name + " error " + ((e && (e.code || e.message)) || ""); }) : Promise.resolve(name + " n/a"); };
@@ -492,7 +561,7 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", showConsent); else showConsent();
 
-  window.EduNative = { aiStats: stats, deviceAI: devStatus, state: state, showPaywall: showPaywall, refreshUsage: refreshUsage, parentalGate: parentalGate, isNative: isNative };
+  window.EduNative = { aiStats: stats, deviceAI: devStatus, state: state, showPaywall: showPaywall, refreshUsage: refreshUsage, parentalGate: parentalGate, isNative: isNative, openLegal: openLink };
 
   if (Store && Store.addListener) { try { Store.addListener("transactionUpdate", function () { syncEntitlements(); }); } catch (e) {} }
   function boot() { refreshUsage(); syncEntitlements(); }

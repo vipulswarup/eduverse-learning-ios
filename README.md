@@ -1,4 +1,7 @@
-# EduVerse for the App Store (no server)
+# EduVerse for the App Store
+
+> **Update:** EduVerse now uses its own server (Cloudflare Worker + D1, folder `server/`) for accounts, two-step verification, friends, leaderboards, challenges and quests. When `apiUrl` is set in `app/config.json`, iCloud and Game Center are NOT used and need not be enabled in Xcode. Follow `server/DEPLOY.md`, then `AUTO-DEPLOY.md` to publish on Cloudflare automatically on every push. New: upload a .pptx on Home to get a course + quiz; "Book style" switch (old full-text lessons). Only In-App Purchase (Pro) still uses Apple. Test with `node app/scripts/test-social.js` and `node server/test/test.mjs`.
+> *(Note for this repo: the `server/` folder and `AUTO-DEPLOY.md` mentioned above were not in the zip received on 2026-11-23, so the server source is not here yet. The deployed server is the `apiUrl` in `app/config.json`.)*
 
 This folder turns the EduVerse web app into an iPhone app. There is **no EduVerse server** to run or pay for.
 

@@ -912,6 +912,8 @@ textarea{width:100%}
 .soc-ov{position:fixed;inset:0;z-index:80;background:rgba(5,10,25,.55);display:flex;align-items:flex-end;justify-content:center;padding:16px}
 .soc-sh{position:relative;width:100%;max-width:440px;max-height:88vh;overflow:auto;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:22px;padding:1.3rem 1.2rem 1.2rem;box-shadow:var(--shadow)}
 @media (min-width:600px){.soc-ov{align-items:center}}
+.soc-chk{display:flex;gap:.7rem;align-items:flex-start;margin:.8rem 0;line-height:1.4;font-weight:700;cursor:pointer}.soc-chk input{width:26px;height:26px;flex:none;margin-top:2px}
+.qst{border:1px solid var(--line);border-radius:14px;padding:.8rem .9rem;margin:.5rem 0}.qst .bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden;margin:.5rem 0}.qst .bar i{display:block;height:100%;background:var(--a1)}.qst small{color:var(--muted)}
 .soc-sh h2{margin:0 2rem .3rem 0;font-size:1.3rem}.soc-sh .sub{margin:.2rem 0 .9rem}
 .soc-x{position:absolute;top:.6rem;right:.6rem;width:2.4rem;height:2.4rem;border-radius:50%;border:0;background:var(--raise);color:var(--ink);font-size:1.4rem;cursor:pointer}
 .soc-row{display:flex;gap:.6rem}.soc-row select{flex:1;min-width:0}
@@ -1086,7 +1088,7 @@ textarea{width:100%}
     zh:{native:"中文 (简体)", sr:"zh-CN", ai:"Simplified Chinese"},
     ja:{native:"日本語", sr:"ja-JP", ai:"Japanese"}
   };
-  const DEF = {theme:"dark", mode:"system", accent:"blue", size:100, font:"sans", motion:"auto", level:"Beginner", pass:70, autoDiagram:true, rate:"1", expressive:true, keepScreen:true, background:true, sfx:true, xp:0, streak:0, lastDay:"", goal:50, todayXp:0, todayDate:"", days:[], badges:[], lastCourse:"", dailyDone:"", best:0, driftDay:"", driftXp:0, teaserDay:"", cards:0, dright:0, dsubj:[], flips:0, tzCount:0, duels:0, dwins:0, dstreak:0, slayer:false, rating:1000, duelDay:"", duelN:0, botw:0, botHard:false, hw:0, hwDay:"", hwN:0, lang:"en", voiceOn:false, autoRead:false, games:0, gameDay:"", gameN:0, gamePerfect:false, gameModes:[], gbest:{}, birthYM:"", nick:"", wk:"", wkXp:0, leagueN:0, kidName:"", wlog:[], hidden:[], onboarded:false};
+  const DEF = {theme:"dark", mode:"system", accent:"blue", size:100, font:"sans", motion:"auto", level:"Beginner", book:false, pass:70, autoDiagram:true, rate:"1", expressive:true, keepScreen:true, background:true, sfx:true, xp:0, streak:0, lastDay:"", goal:50, todayXp:0, todayDate:"", days:[], badges:[], lastCourse:"", dailyDone:"", best:0, driftDay:"", driftXp:0, teaserDay:"", cards:0, dright:0, dsubj:[], flips:0, tzCount:0, duels:0, dwins:0, dstreak:0, slayer:false, rating:1000, duelDay:"", duelN:0, botw:0, botHard:false, hw:0, hwDay:"", hwN:0, lang:"en", voiceOn:false, autoRead:false, games:0, gameDay:"", gameN:0, gamePerfect:false, gameModes:[], gbest:{}, birthYM:"", nick:"", wk:"", wkXp:0, leagueN:0, kidName:"", wlog:[], hidden:[], onboarded:false};
   let S = Object.assign({}, DEF), sAt = 0, sTimer = null;
   const settingsKey = () => acct ? "eduverse.settings." + acct.uid : "eduverse.settings";
   function cleanS(raw){
@@ -2154,7 +2156,7 @@ textarea{width:100%}
     const shelf = realC.length
       ? `<ul class="shelf">${realC.map(c => {
           const d = c.lessons.filter(l => l.done).length, pct = Math.round(d / c.lessons.length * 100);
-          const kind = c.mode === "practice" ? "Practice" : (isKid(c.level) ? KID : c.level);
+          const kind = c.mode === "practice" ? "Practice" : ((isKid(c.level) ? KID : c.level) + (c.style === "book" ? " · Book" : "") + (c.src ? " · Slides" : ""));
           const meta = c.mode === "practice" ? (d ? "Finished" : "Not finished") : d + " of " + c.lessons.length + " lessons";
           return `<li data-row="${c.id}"><button class="cc" data-open="${c.id}"><span class="cn-wrap">${constel(c)}</span><span class="cc-body"><strong>${esc(c.title)}</strong><span class="cc-meta"><span>${esc(kind)} · ${meta}</span>${d === c.lessons.length ? `<span class="chip ok">Complete</span>` : ""}</span><span class="mini"><i style="width:0" data-w="${pct}"></i></span></span></button><button class="link cc-del" data-del="${c.id}" aria-label="Delete ${esc(c.title)}">Delete</button></li>`;
         }).join("")}</ul>`
@@ -2174,6 +2176,12 @@ textarea{width:100%}
             </div>
             <button class="btn" id="goBtn" type="submit" ${sample?"":"disabled"}>Build my course</button>
           </div>
+          <div class="ask-row" style="margin-top:.55rem;gap:.6rem;flex-wrap:wrap">
+            <label class="levels" style="display:inline-flex"><label style="cursor:pointer"><input type="checkbox" id="bookChk" ${S.book?"checked":""}><span>Book style</span></label></label>
+            <button class="btn ghost" id="pptBtn" type="button" ${sample?"":"disabled"}>Upload slides (.pptx)</button>
+            <input type="file" id="pptFile" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+          </div>
+          <p class="sub" id="pptNote" style="margin:.4rem 0 0" aria-live="polite"></p>
         </form>
         ${err ? `<div class="note">${esc(err)}</div>` : ""}
       </section>
@@ -2225,8 +2233,11 @@ textarea{width:100%}
       e.preventDefault();
       const t = $("#topic").value.trim(), lv = app.querySelector("[name=lvl]:checked").value;
       if(isYesNo(t) && sample) return answerYesNo(t, lv);
-      buildCourse(t, lv);
+      buildCourse(t, lv, !!$("#bookChk").checked);
     };
+    $("#bookChk").onchange = e => { S.book = e.target.checked; save(); };
+    $("#pptBtn").onclick = () => $("#pptFile").click();
+    $("#pptFile").onchange = e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if(f) buildFromDeck(f, app.querySelector("[name=lvl]:checked").value, !!$("#bookChk").checked); };
   }
 
   // Only when the person says "yes or no" in their question: a direct answer, no course and no XP.
@@ -2272,7 +2283,7 @@ Use "It depends" only if a plain yes or no would be misleading or the facts are 
     }
     go({name:"lesson", id, i:0});
   }
-  async function buildCourse(topic, level){
+  async function buildCourse(topic, level, book){
     if(!topic || !sample) return;
     if(isPractice(topic)) return createPractice(topic, level);
     const btn = $("#goBtn"); btn.disabled = true; btn.textContent = "Mapping your course…";
@@ -2288,7 +2299,7 @@ If the topic is unsafe to teach, make a course on the nearest safe, educational 
       if(!res || !Array.isArray(res.lessons) || !res.lessons.length) throw {message:"the course came back empty"};
       const c = {
         id: "c" + Date.now().toString(36),
-        topic, level,
+        topic, level, style: book ? "book" : undefined,
         title: String(res.title || topic),
         tagline: String(res.tagline || ""),
         lessons: res.lessons.slice(0,14).map(l => ({title:String(l.title||"Lesson"), goal:String(l.goal||"")}))
@@ -2296,6 +2307,69 @@ If the topic is unsafe to teach, make a course on the nearest safe, educational 
       store.courses.unshift(c); save();
       go({name:"course", id:c.id});
     }catch(e){ renderHome(errText(e)); $("#topic").value = topic; }
+  }
+
+  // ---------- slides (.pptx) ----------
+  async function inflateRaw(u8){
+    const ds = new DecompressionStream("deflate-raw"), w = ds.writable.getWriter(); w.write(u8); w.close();
+    return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+  }
+  async function readZip(buf){
+    const dv = new DataView(buf), u8 = new Uint8Array(buf), out = {};
+    let e = -1; for(let k = u8.length - 22; k >= Math.max(0, u8.length - 70000); k--){ if(dv.getUint32(k, true) === 0x06054b50){ e = k; break; } }
+    if(e < 0) throw {message:"that file is not a .pptx"};
+    const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true);
+    for(let k = 0; k < n; k++){
+      if(dv.getUint32(p, true) !== 0x02014b50) break;
+      const meth = dv.getUint16(p + 10, true), csz = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+      const name = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl));
+      p += 46 + nl + el + cl;
+      if(!/^ppt\/(slides|notesSlides)\/[^/]+\.xml$/.test(name)) continue;
+      const lo = off + 30 + dv.getUint16(off + 26, true) + dv.getUint16(off + 28, true), raw = u8.subarray(lo, lo + csz);
+      out[name] = new TextDecoder().decode(meth === 0 ? raw : await inflateRaw(raw));
+    }
+    return out;
+  }
+  const xmlText = x => { const d = new DOMParser().parseFromString(x, "application/xml"); const paras = []; d.querySelectorAll("p").forEach(pp => { if(pp.localName !== "p") return; const t = Array.from(pp.getElementsByTagName("*")).filter(z => z.localName === "t").map(z => z.textContent).join(""); if(t.trim()) paras.push(t.trim()); }); return paras.join("\n"); };
+  async function readDeck(file){
+    if(file.size > 40e6) throw {message:"that file is too big (limit 40 MB)"};
+    const z = await readZip(await file.arrayBuffer()), num = n => +(/(\d+)\.xml$/.exec(n) || [0,0])[1];
+    const slides = Object.keys(z).filter(n => n.includes("/slides/")).sort((a,b) => num(a) - num(b)).map(n => {
+      const note = z[n.replace("/slides/slide", "/notesSlides/notesSlide")];
+      return xmlText(z[n]) + (note ? "\n(Speaker notes: " + xmlText(note).replace(/\n/g, " ") + ")" : "");
+    });
+    if(!slides.some(t => t.trim())) throw {message:"no text found in the slides (images are not read yet)"};
+    return slides;
+  }
+  async function buildFromDeck(file, level, book){
+    const note = $("#pptNote"), btn = $("#pptBtn"); if(!sample) return;
+    btn.disabled = true; note.textContent = "Reading your slides…";
+    try{
+      const slides = await readDeck(file);
+      const deck = slides.map((t,k) => "[Slide " + (k+1) + "]\n" + t).join("\n\n");
+      const cut = deck.length > 24000 ? deck.slice(0, 24000) : deck;
+      note.textContent = "Building a course from " + slides.length + " slides…";
+      const title0 = file.name.replace(/\.pptx$/i, "");
+      const res = await sample.json(
+`You are the course designer for EduVerse. A learner uploaded a slide deck called "${title0}". Turn it into a course that teaches what the deck covers.
+${voiceM(level)}${book ? "\nBOOK STYLE: plan the lessons like textbook chapters in the deck's order." : ""}
+Slides (text only):
+---
+${cut}
+---
+Return ONLY JSON, no markdown fences:
+{"title":"clear course title (max 8 words)","tagline":"one sentence on what the learner will be able to do afterwards","lessons":[{"title":"lesson title (max 7 words)","goal":"one sentence on what this lesson covers","from":1,"to":4}]}
+"from" and "to" are the first and last slide numbers the lesson is based on; together the lessons cover the whole deck in order. Use ${isKid(level) ? "2-4" : "3-10"} lessons depending on how much the deck holds.`, {modelTier:"default", cache:false});
+      if(!res || !Array.isArray(res.lessons) || !res.lessons.length) throw {message:"the course came back empty"};
+      const lessons = res.lessons.slice(0, 12).map((l, k) => {
+        const a = Math.max(1, Math.min(slides.length, +l.from || 1)), b = Math.max(a, Math.min(slides.length, +l.to || a));
+        return {title: String(l.title || "Lesson " + (k+1)), goal: String(l.goal || ""), src: slides.slice(a - 1, b).map((t,q) => "[Slide " + (a+q) + "]\n" + t).join("\n\n").slice(0, 7000)};
+      });
+      const title = String(res.title || title0), id = "c" + Date.now().toString(36);
+      store.courses.unshift({id: id + "q", topic: title, level, mode:"practice", src: cut, title: "Quiz: " + title, tagline: "Questions from your slides.", lessons: [{title: "Practice quiz", goal: (isKid(level) ? "10" : "20") + " questions from your slides"}]});
+      store.courses.unshift({id, topic: title, level, style: book ? "book" : undefined, src: "deck", title, tagline: String(res.tagline || ""), lessons});
+      save(); go({name:"course", id});
+    }catch(e){ note.textContent = ""; renderHome(errText(e)); }
   }
 
   // ---------- course ----------
@@ -3868,7 +3942,7 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
     });
   }
   // Neutral age question (no hint about which answer unlocks what), asked once on first use of a social feature.
-  function ageGate(){
+  function ageGate(quiet){
     if(ageYears() != null) return Promise.resolve(isTeen());
     return new Promise(res => {
       const y = new Date().getFullYear(), years = [...Array(78)].map((_, k) => y - 3 - k);
@@ -3882,7 +3956,7 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
       ok.onclick = () => {
         S.birthYM = yy.value + "-" + String(m.value).padStart(2, "0"); saveS(); s.el.remove();
         if(isTeen()) return res(true);
-        kidNotice(); res(false);
+        if(!quiet) kidNotice(); res(false);
       };
     });
   }
@@ -3947,9 +4021,20 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
       if(SOC()){ const r = await SOC().challengeCreate(payload); code = r.code; link = r.link || ""; }
       else code = await packCh(payload);
     }catch(e){ return toast((e && e.message) || "Couldn't make the challenge. Try again."); }
+    if(SOC() && ACCT() && acctInfo()){
+      try{ const fl = await ACCT().friendsList(); if(fl.friends.length && await offerSend(code, fl.friends.map(f => f.username))) return; }catch(e){}
+    }
     const label = String(g.topic).split(":")[0];
     const text = `${nick} scored ${score} in ${def.name} on "${label}" in EduVerse. Can you beat it?` + (link ? "\n" + link : "") + `\n\nChallenge code: ${code}\n(Open EduVerse → Games → Got a challenge code?)`;
     shareText(text, code, "Challenge ready");
+  }
+  function offerSend(code, names){
+    return new Promise(res => {
+      let sent = false;
+      const s = sheet(`<h2>Challenge ready</h2><p class="sub">Send it straight to a friend, or share the code another way.</p><div class="pv-cards">${names.slice(0, 12).map(n => `<button class="btn" type="button" data-to="${esc(n)}">Send to @${esc(n)}</button>`).join("")}<button class="btn ghost" id="osOther" type="button">Share another way</button></div>`, {onClose: () => res(sent)});
+      s.el.querySelectorAll("[data-to]").forEach(b => b.onclick = async () => { b.disabled = true; try{ await ACCT().challengeSend(code, b.dataset.to); sent = true; toast("Sent to @" + b.dataset.to); s.close(); }catch(e){ toast(errText(e)); b.disabled = false; } });
+      s.$("#osOther").onclick = () => { s.el.remove(); res(false); };
+    });
   }
   async function shareText(text, code, title){
     try{ if(navigator.share){ await navigator.share({text}); return; } }catch(e){ if(e && e.name === "AbortError") return; }
@@ -4072,6 +4157,10 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
     const mode = await LG.mode();
     if(mode !== "native" && mode !== "db"){
       body.innerHTML = `<div class="note">Friends leagues work in the EduVerse iPhone app, where your league is saved on EduVerse's own server. Challenges and share cards work here.</div>`; return;
+    }
+    if(ACCT() && !acctInfo()){
+      body.innerHTML = `<p class="sub">Make an account so your leagues are saved and friends can find you. Under 18s need a parent or guardian to make it.</p><div class="sp-act"><button class="btn" id="lgAcN" type="button">Create account</button><button class="btn ghost" id="lgAcI" type="button">Log in</button></div>`;
+      $("#lgAcN").onclick = signupSheet; $("#lgAcI").onclick = loginSheet; return;
     }
     if(!(await askNick())){ body.innerHTML = `<div class="note">Pick a nickname to join a league.</div>`; return; }
     let mine = [];
@@ -4304,19 +4393,34 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
   async function acStart(){ // on app open: bring in progress made on other devices
     if(CLOUD()) return clStart();
     const a = ACCT(), info = acctInfo(); if(!a || !info) return;
-    try{ const me = await a.accountMe(); if(me.dataAt > (info.dataAt || 0)){ await acPull(); render(); } acPush(); }
+    try{ const me = await a.accountMe(); if(me.totp !== !!info.totp){ info.totp = !!me.totp; setAcctInfo(info); } if(me.dataAt > (info.dataAt || 0)){ await acPull(); render(); } acPush(); }
     catch(e){ if(e && e.code === "not_logged_in") setAcctInfo(null); }
   }
   async function afterLogin(r){
-    setAcctInfo({username: r.username, dataAt: 0});
+    setAcctInfo({username: r.username, dataAt: 0, totp: !!r.totp});
     if(r.dataAt) await acPull();
     await acPush(); render();
   }
   function pwField(id, label, auto){ return `<label class="soc-lab" for="${id}">${label}</label><input id="${id}" type="password" autocomplete="${auto}" maxlength="100">`; }
-  function signupSheet(){
-    const s = sheet(`<h2>Create your account</h2><p class="sub">Keep your progress safe and log in on other devices. No email needed. Don't use your real name.</p>
+  async function parentStep(){
+    if(!(await grownGate())) return false;
+    return new Promise(res => {
+      const s = sheet(`<h2>A parent or guardian makes the account</h2><p class="sub">Accounts for people under 18 are made and looked after by a parent or guardian. If that's you, please read the <button class="link" id="pcT" type="button">Terms of Use</button> and the <button class="link" id="pcP" type="button">Privacy Policy</button>, then agree below.</p>
+        <label class="soc-chk"><input type="checkbox" id="pcA"><span>I am 18 or older and this child's parent or guardian. I agree to the Terms of Use and Privacy Policy and I'm happy for this child to have an EduVerse account.</span></label>
+        <div class="sp-act"><button class="btn" id="pcGo" type="button" disabled>Continue</button></div>`, {onClose: () => res(false)});
+      const open = k => { if(window.EduNative && window.EduNative.openLegal) window.EduNative.openLegal(k); };
+      s.$("#pcT").onclick = () => open("terms"); s.$("#pcP").onclick = () => open("privacy");
+      s.$("#pcA").onchange = e => { s.$("#pcGo").disabled = !e.target.checked; };
+      s.$("#pcGo").onclick = () => { s.el.remove(); res(true); };
+    });
+  }
+  async function signupSheet(){
+    if(ageYears() == null){ await ageGate(true); if(ageYears() == null) return; }
+    let holder = "adult";
+    if(ageYears() < 18){ if(!(await parentStep())) return; holder = "parent"; }
+    const s = sheet(`<h2>Create your account</h2><p class="sub">${holder === "parent" ? "You are making this account for your child. " : ""}Keep progress safe and log in on other devices. No email needed. Don't use a real name.${isTeen() ? "" : " Friends, leagues and challenges stay off for under 13s."}</p>
       <label class="soc-lab" for="suU">Username</label><input id="suU" autocomplete="username" autocapitalize="none" maxlength="20" placeholder="e.g. quizfox">
-      ${pwField("suP", "Password (6 or more characters)", "new-password")}${pwField("suP2", "Password again", "new-password")}
+      ${pwField("suP", "Password (8 or more characters)", "new-password")}${pwField("suP2", "Password again", "new-password")}
       <div class="sp-act"><button class="btn" id="suGo" type="button">Create account</button></div><p class="soc-err" id="suE" aria-live="polite"></p>
       <p class="sub" style="margin-top:.6rem">Already have one? <button class="link" id="suLogin" type="button">Log in</button></p>`);
     s.$("#suU").focus();
@@ -4324,10 +4428,10 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
     s.$("#suGo").onclick = async () => {
       const u = s.$("#suU").value.trim(), p1 = s.$("#suP").value, p2 = s.$("#suP2").value, er = s.$("#suE");
       if(!/^[A-Za-z0-9_.]{3,20}$/.test(u)) return er.textContent = "Use 3 to 20 letters, numbers, dots or underscores.";
-      if(p1.length < 6) return er.textContent = "Passwords need at least 6 characters.";
+      if(p1.length < 8) return er.textContent = "Passwords need at least 8 characters.";
       if(p1 !== p2) return er.textContent = "The passwords don't match.";
       s.$("#suGo").disabled = true;
-      try{ const r = await ACCT().accountSignup(u, p1, isTeen()); s.el.remove(); await afterLogin(r); recoverySheet(r.recoveryCode, true); }
+      try{ const r = await ACCT().accountSignup(u, p1, isTeen(), holder); s.el.remove(); await afterLogin(r); recoverySheet(r.recoveryCode, true); }
       catch(e){ er.textContent = errText(e); s.$("#suGo").disabled = false; }
     };
   }
@@ -4341,29 +4445,34 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
     const s = sheet(`<h2>Log in</h2><p class="sub">Your progress from other devices will be added to this one.</p>
       <label class="soc-lab" for="liU">Username</label><input id="liU" autocomplete="username" autocapitalize="none" maxlength="20">
       ${pwField("liP", "Password", "current-password")}
+      <div id="liTW" hidden><label class="soc-lab" for="liT">Code from your authenticator app</label><input id="liT" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="6-digit code or a backup code"></div>
       <div class="sp-act"><button class="btn" id="liGo" type="button">Log in</button></div><p class="soc-err" id="liE" aria-live="polite"></p>
       <p class="sub" style="margin-top:.6rem"><button class="link" id="liForgot" type="button">Forgot password?</button> · <button class="link" id="liNew" type="button">Create account</button></p>`);
     s.$("#liU").focus();
     s.$("#liNew").onclick = () => { s.el.remove(); signupSheet(); };
     s.$("#liForgot").onclick = () => { s.el.remove(); resetSheet(); };
     const go2 = async () => {
-      const er = s.$("#liE"); s.$("#liGo").disabled = true;
-      try{ const r = await ACCT().accountLogin(s.$("#liU").value.trim(), s.$("#liP").value); s.el.remove(); await afterLogin(r); toast("Logged in as @" + r.username); }
-      catch(e){ er.textContent = errText(e); s.$("#liGo").disabled = false; }
+      const er = s.$("#liE"); s.$("#liGo").disabled = true; er.textContent = "";
+      try{ const r = await ACCT().accountLogin(s.$("#liU").value.trim(), s.$("#liP").value, s.$("#liT").value.trim()); s.el.remove(); await afterLogin(r); toast("Logged in as @" + r.username); }
+      catch(e){
+        if(e && e.code === "totp_required"){ s.$("#liTW").hidden = false; s.$("#liT").focus(); }
+        er.textContent = errText(e); s.$("#liGo").disabled = false;
+      }
     };
-    s.$("#liGo").onclick = go2; s.$("#liP").onkeydown = e => { if(e.key === "Enter") go2(); };
+    s.$("#liGo").onclick = go2; s.$("#liP").onkeydown = e => { if(e.key === "Enter") go2(); }; s.$("#liT").onkeydown = e => { if(e.key === "Enter") go2(); };
   }
   function resetSheet(){
     const s = sheet(`<h2>Reset your password</h2><p class="sub">Use the recovery code you saved when you made your account.</p>
       <label class="soc-lab" for="reU">Username</label><input id="reU" autocomplete="username" autocapitalize="none" maxlength="20">
       <label class="soc-lab" for="reC">Recovery code</label><input id="reC" autocapitalize="characters" maxlength="20" placeholder="XXXX-XXXX-XXXX">
-      ${pwField("reP", "New password", "new-password")}
+      ${pwField("reP", "New password (8 or more characters)", "new-password")}
+      <div id="reTW" hidden><label class="soc-lab" for="reT">Code from your authenticator app (or a backup code)</label><input id="reT" inputmode="numeric" autocomplete="one-time-code" maxlength="12"></div>
       <div class="sp-act"><button class="btn" id="reGo" type="button">Reset and log in</button></div><p class="soc-err" id="reE" aria-live="polite"></p>`);
     s.$("#reU").focus();
     s.$("#reGo").onclick = async () => {
-      const er = s.$("#reE"); if(s.$("#reP").value.length < 6) return er.textContent = "Passwords need at least 6 characters.";
-      try{ const r = await ACCT().accountReset(s.$("#reU").value.trim(), s.$("#reC").value, s.$("#reP").value); s.el.remove(); await afterLogin(r); recoverySheet(r.recoveryCode, false); }
-      catch(e){ er.textContent = errText(e); }
+      const er = s.$("#reE"); if(s.$("#reP").value.length < 8) return er.textContent = "Passwords need at least 8 characters.";
+      try{ const r = await ACCT().accountReset(s.$("#reU").value.trim(), s.$("#reC").value, s.$("#reP").value, s.$("#reT").value.trim()); s.el.remove(); await afterLogin(r); recoverySheet(r.recoveryCode, false); }
+      catch(e){ if(e && e.code === "totp_required") s.$("#reTW").hidden = false; er.textContent = errText(e); }
     };
   }
   function passwordSheet(){
@@ -4374,6 +4483,36 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
     const s = sheet(`<h2>Delete your account?</h2><p class="sub">This deletes your account, friends and the progress saved on the server. Progress on this device stays unless you also delete it under Grown-ups.</p>${pwField("daP", "Password", "current-password")}<div class="sp-act"><button class="btn danger" id="daGo" type="button">Delete account</button></div><p class="soc-err" id="daE" aria-live="polite"></p>`);
     s.$("#daGo").onclick = async () => { try{ await ACCT().accountDelete(s.$("#daP").value); setAcctInfo(null); s.el.remove(); toast("Account deleted"); render(); }catch(e){ s.$("#daE").textContent = errText(e); } };
   }
+  function backupSheet(codes){
+    const s = sheet(`<h2>Save your backup codes</h2><p class="sub">If you lose your phone or authenticator app, each of these codes lets you in once. Write them down or screenshot them and keep them somewhere safe. They won't be shown again.</p>
+      <p class="rec-code" style="font-size:1rem;line-height:1.9">${codes.map(esc).join("<br>")}</p><div class="sp-act"><button class="btn" id="bkOk" type="button">I've saved them</button><button class="btn ghost" id="bkCp" type="button">Copy</button></div>`, {noClose: true});
+    s.$("#bkOk").onclick = () => s.el.remove();
+    s.$("#bkCp").onclick = async () => { try{ await navigator.clipboard.writeText(codes.join("\n")); toast("Copied"); }catch(e){ toast("Press and hold to copy"); } };
+  }
+  async function tfaOnSheet(){
+    let st; try{ st = await ACCT().totpBegin(); }catch(e){ return toast(errText(e)); }
+    const pretty = String(st.secret).replace(/(.{4})(?=.)/g, "$1 ");
+    const s = sheet(`<h2>Turn on two-step verification</h2><p class="sub">1. Open an authenticator app (like Google Authenticator or Microsoft Authenticator) and add a new account with this key:</p>
+      <p class="rec-code" style="font-size:1.05rem;letter-spacing:.06em">${esc(pretty)}</p>
+      <div class="sp-act"><button class="btn ghost" id="tfCp" type="button">Copy key</button><a class="btn ghost" id="tfOpen" href="${esc(st.uri)}">Open in app</a></div>
+      <p class="sub">2. Type the 6-digit code the app shows:</p><input id="tfC" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="123456">
+      <div class="sp-act"><button class="btn" id="tfGo" type="button">Turn on</button></div><p class="soc-err" id="tfE" aria-live="polite"></p>`);
+    s.$("#tfCp").onclick = async () => { try{ await navigator.clipboard.writeText(st.secret); toast("Copied"); }catch(e){ toast("Press and hold to copy"); } };
+    s.$("#tfGo").onclick = async () => {
+      s.$("#tfGo").disabled = true;
+      try{ const r = await ACCT().totpEnable(s.$("#tfC").value.trim()); const i = acctInfo(); if(i){ i.totp = true; setAcctInfo(i); } s.el.remove(); backupSheet(r.backupCodes); if(view.name === "settings") renderSettings(); }
+      catch(e){ s.$("#tfE").textContent = errText(e); s.$("#tfGo").disabled = false; }
+    };
+  }
+  function tfaOffSheet(){
+    const s = sheet(`<h2>Turn off two-step verification?</h2><p class="sub">Logging in will only need your password. Enter your password and a code from your authenticator app (or a backup code).</p>${pwField("tdP", "Password", "current-password")}
+      <label class="soc-lab" for="tdC">Code</label><input id="tdC" inputmode="numeric" autocomplete="one-time-code" maxlength="12">
+      <div class="sp-act"><button class="btn danger" id="tdGo" type="button">Turn off</button></div><p class="soc-err" id="tdE" aria-live="polite"></p>`);
+    s.$("#tdGo").onclick = async () => {
+      try{ await ACCT().totpDisable(s.$("#tdP").value, s.$("#tdC").value.trim()); const i = acctInfo(); if(i){ i.totp = false; setAcctInfo(i); } s.el.remove(); toast("Two-step verification is off"); if(view.name === "settings") renderSettings(); }
+      catch(e){ s.$("#tdE").textContent = errText(e); }
+    };
+  }
   async function logOut(){ try{ await ACCT().accountLogout(); }catch(e){} setAcctInfo(null); toast("Logged out. Your progress stays on this device."); render(); }
   function accountRows(){
     if(CLOUD()){
@@ -4383,12 +4522,13 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
     }
     if(!ACCT()) return `<div class="set-row"><div class="lab"><b>Account</b><small>Accounts with a username and password work in the EduVerse app. Here, your progress is saved on this device. Use Export below to move it.</small></div></div>`;
     const info = acctInfo();
-    if(!info) return `<div class="set-row"><div class="lab"><b>Account</b><small>Make an account to keep your progress safe and log in on other devices. No email needed.</small></div></div>
+    if(!info) return `<div class="set-row"><div class="lab"><b>Account</b><small>Make an account to keep your progress safe and log in on other devices. No email needed. Under 18s: a parent or guardian makes the account.</small></div></div>
       <div class="set-row acct-btns"><button class="btn" id="acNew" type="button">Create account</button><button class="btn ghost" id="acIn" type="button">Log in</button></div>`;
     const ago = info.syncedAt ? Math.max(0, Math.round((Date.now() - info.syncedAt) / 60000)) : null;
     return `<div class="set-row"><div class="lab"><b>@${esc(info.username)}</b><small>${ago == null ? "Saving to your account…" : ago < 1 ? "Synced just now" : "Synced " + ago + " min ago"}. Log in with this username on any device.</small></div><button class="btn ghost" id="acOut" type="button">Log out</button></div>
       <div class="set-row"><div class="lab"><b>Password</b></div><button class="btn ghost" id="acPw" type="button">Change</button></div>
-      <div class="set-row"><div class="lab"><b>Delete account</b><small>Removes your account from the EduVerse server.</small></div><button class="btn ghost" id="acDel" type="button">Delete</button></div>`;
+      <div class="set-row"><div class="lab"><b>Two-step verification</b><small>${info.totp ? "On. Logging in needs a code from your authenticator app." : "Adds a code from an authenticator app (like Google Authenticator) when you log in. Recommended."}</small></div><button class="btn ghost" id="acTfa" type="button">${info.totp ? "Turn off" : "Turn on"}</button></div>
+      <div class="set-row"><div class="lab"><b>Delete account</b><small>Removes your account, friends and saved progress from the EduVerse server.</small></div><button class="btn ghost" id="acDel" type="button">Delete</button></div>`;
   }
   function bindAccountRows(){
     const b = id => document.getElementById(id);
@@ -4397,6 +4537,7 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
     if(b("acIn")) b("acIn").onclick = loginSheet;
     if(b("acOut")) b("acOut").onclick = logOut;
     if(b("acPw")) b("acPw").onclick = passwordSheet;
+    if(b("acTfa")) b("acTfa").onclick = () => { const i = acctInfo(); (i && i.totp) ? tfaOffSheet() : tfaOnSheet(); };
     if(b("acDel")) b("acDel").onclick = deleteAccountSheet;
   }
 
@@ -4484,7 +4625,15 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
     try{ data = await ACCT().friendsList(); }catch(e){ body.innerHTML = `<div class="note">${esc(errText(e))}</div>`; return; }
     const me = acctInfo().username;
     data.friends.sort((a, b) => b.weekXp - a.weekXp);
+    const chs = Array.isArray(data.challenges) ? data.challenges : [], qs = Array.isArray(data.quests) ? data.quests : [];
+    const qHtml = qs.map(q => q.incoming
+      ? `<div class="qst"><b>@${esc(q.with)}</b> invites you to a quest<br><small>Earn ${q.target} XP together this week.</small><div class="sp-act"><button class="btn" type="button" data-qa="${q.id}">Accept</button><button class="btn ghost" type="button" data-qd="${q.id}">Decline</button></div></div>`
+      : q.status === "pending"
+        ? `<div class="qst"><b>Quest with @${esc(q.with)}</b><br><small>Waiting for them to accept · ${q.target} XP together</small> <button class="link" type="button" data-ql="${q.id}">Cancel</button></div>`
+        : `<div class="qst"><b>${q.done ? "✅ " : ""}Quest with @${esc(q.with)}</b><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${q.target}" aria-valuenow="${Math.min(q.mine + q.theirs, q.target)}"><i style="width:${Math.min(100, Math.round((q.mine + q.theirs) / q.target * 100))}%"></i></div><small>${Math.min(q.mine + q.theirs, q.target)} of ${q.target} XP together · you ${q.mine} · @${esc(q.with)} ${q.theirs}${q.done ? " · Quest complete!" : " · ends Sunday"}</small> <button class="link" type="button" data-ql="${q.id}">Leave</button></div>`).join("");
     body.innerHTML = `<p class="sub">You are <b>@${esc(me)}</b>. Friends find you by this username.</p>
+      ${chs.length ? `<section class="panel"><h2>Challenges for you</h2><div class="fr-list">${chs.map(c => `<div class="fr-row"><span><b>@${esc(c.from)}</b><br><small>${esc(c.topic || "a game")} · beat ${esc(c.score)}</small></span><button class="btn" type="button" data-play="${esc(c.code)}">Play</button></div>`).join("")}</div></section>` : ""}
+      ${qs.length ? `<section class="panel"><h2>Quests</h2>${qHtml}</section>` : ""}
       <input id="frQ" autocomplete="off" autocapitalize="none" maxlength="20" placeholder="Search usernames" aria-label="Search usernames"><div id="frRes" class="fr-list" aria-live="polite"></div>
       ${data.incoming.length ? `<section class="panel"><h2>Friend requests</h2><div class="fr-list">${data.incoming.map(u => `<div class="fr-row"><b>@${esc(u)}</b><span><button class="btn" type="button" data-acc="${esc(u)}">Accept</button><button class="btn ghost" type="button" data-dec="${esc(u)}">Decline</button></span></div>`).join("")}</div></section>` : ""}
       <section class="panel"><h2>Your friends · this week</h2>${data.friends.length ? `<div class="lbl">${data.friends.map((f, i) => `<div class="lbr"><span class="rk">${i + 1}</span><span class="nm">@${esc(f.username)}${f.streak >= 2 ? ` <small class="fr-st">🔥 ${f.streak}</small>` : ""}</span><span class="sc">${f.weekXp} XP</span><button class="lg-more" type="button" data-fm="${esc(f.username)}" aria-label="Options for ${esc(f.username)}">⋯</button></div>`).join("")}</div>` : `<p class="empty">No friends yet. Search for a username above.</p>`}
@@ -4499,15 +4648,28 @@ Return ONLY JSON: {"items":[{"t":"term","c":"clue"}]}`);
       app.querySelectorAll("[data-add]").forEach(b => b.onclick = async () => { b.disabled = true; try{ const r = await ACCT().friendsRequest(b.dataset.add); b.outerHTML = `<em>${r.state === "friends" ? "Friends" : "Request sent"}</em>`; }catch(e){ toast(errText(e)); b.disabled = false; } });
       app.querySelectorAll("[data-acc]").forEach(b => b.onclick = async () => { try{ await ACCT().friendsRespond(b.dataset.acc, true); toast("You're now friends with @" + b.dataset.acc); renderFriends(); }catch(e){ toast(errText(e)); } });
       app.querySelectorAll("[data-dec]").forEach(b => b.onclick = async () => { try{ await ACCT().friendsRespond(b.dataset.dec, false); renderFriends(); }catch(e){ toast(errText(e)); } });
+      app.querySelectorAll("[data-play]").forEach(b => b.onclick = () => openChallenge(b.dataset.play));
+      app.querySelectorAll("[data-qa]").forEach(b => b.onclick = async () => { try{ await ACCT().questRespond(+b.dataset.qa, true); renderFriends(); }catch(e){ toast(errText(e)); } });
+      app.querySelectorAll("[data-qd]").forEach(b => b.onclick = async () => { try{ await ACCT().questRespond(+b.dataset.qd, false); renderFriends(); }catch(e){ toast(errText(e)); } });
+      app.querySelectorAll("[data-ql]").forEach(b => b.onclick = async () => { try{ await ACCT().questLeave(+b.dataset.ql); renderFriends(); }catch(e){ toast(errText(e)); } });
       app.querySelectorAll("[data-fm]").forEach(b => b.onclick = () => {
         const u = b.dataset.fm;
-        const s = sheet(`<h2>@${esc(u)}</h2><div class="pv-cards"><button class="btn ghost" id="fmRem" type="button">Remove friend</button><button class="btn ghost" id="fmBlk" type="button">Block</button><button class="btn ghost" id="fmRep" type="button">Report username</button></div>`);
+        const s = sheet(`<h2>@${esc(u)}</h2><div class="pv-cards"><button class="btn" id="fmQ" type="button">Start a weekly quest</button><button class="btn ghost" id="fmRem" type="button">Remove friend</button><button class="btn ghost" id="fmBlk" type="button">Block</button><button class="btn ghost" id="fmRep" type="button">Report username</button></div>`);
+        s.$("#fmQ").onclick = () => { s.el.remove(); questSheet(u); };
         s.$("#fmRem").onclick = async () => { try{ await ACCT().friendsRemove(u); }catch(e){} s.el.remove(); renderFriends(); };
         s.$("#fmBlk").onclick = async () => { try{ await ACCT().friendsBlock(u); toast("Blocked. They can't find or add you."); }catch(e){} s.el.remove(); renderFriends(); };
         s.$("#fmRep").onclick = async () => { try{ await ACCT().friendsReport(u); toast("Thanks. We'll look at it."); }catch(e){} s.el.remove(); };
       });
     };
     bindFr();
+  }
+
+  function questSheet(u){
+    const s = sheet(`<h2>Quest with @${esc(u)}</h2><p class="sub">Add up the XP you both earn this week. If you reach the goal together, you win the quest. It ends on Sunday.</p>
+      <div class="pv-cards">${[200, 500, 1000].map(n => `<button class="btn ghost" type="button" data-qt="${n}">${n} XP together</button>`).join("")}</div><p class="soc-err" id="qsE" aria-live="polite"></p>`);
+    s.el.querySelectorAll("[data-qt]").forEach(b => b.onclick = async () => {
+      try{ await ACCT().questCreate(u, +b.dataset.qt); s.el.remove(); toast("Quest sent to @" + u); renderFriends(); }catch(e){ s.$("#qsE").textContent = errText(e); }
+    });
   }
 
   // ---------- homework help ----------
@@ -4656,7 +4818,7 @@ ${voiceM(S.level)} Answer their follow-up questions clearly and concisely (${isK
       const want = Math.min(10, total - all.length);
       if(note) note.textContent = `Writing your questions… ${all.length} of ${total}`;
       const res = await sample.json(
-`Write ${want} multiple-choice practice questions on: "${c.topic}".
+`Write ${want} multiple-choice practice questions on: "${c.topic}".${c.src ? " Base every question on this material from the learner's slides:\n---\n" + c.src.slice(0,9000) + "\n---" : ""}
 ${voiceM(c.level)}
 ${b === 0 ? "Start easy and get gradually harder." : "Make these medium to hard, and different from the earlier ones."}
 Cover different sub-topics, test understanding and application rather than trivia. ${kid ? "Each question at most 10 words, exactly 3 very short options that start with an emoji." : "Exactly 4 plausible options."} Give a one-sentence explanation of the right answer.
@@ -4764,7 +4926,7 @@ Return ONLY JSON: {"questions":[{"q":"question","options":["A","B","C","D"],"ans
     if(!L) return go({name:"course", id:c.id});
     if(!c.daily && S.lastCourse !== c.id){ S.lastCourse = c.id; saveS(); }
     if(c.mode === "practice") return renderPractice(c, i);
-    if(L.steps || (!L.content && sample)) return renderSteps(c, i);
+    if(c.style !== "book" && (L.steps || (!L.content && sample))) return renderSteps(c, i);
     L.chat = L.chat || [];
     app.innerHTML = `
       <article class="lesson${isKid(c.level)?" kidmode":""}">
@@ -5088,7 +5250,7 @@ ${voiceM(c.level)}
 Course outline:
 ${outline}
 This lesson (number ${i + 1}): "${L.title}" — ${L.goal}
-${i ? "The learner has only completed lessons 1 to " + i + ". Briefly connect to the previous lesson in the first card." : "This is the very first lesson: assume the learner knows nothing and start with something they can picture."}
+${L.src ? "Base the lesson on this material from the learner's own slides and stay faithful to it:\n---\n" + L.src.slice(0,6000) + "\n---\n" : ""}${i ? "The learner has only completed lessons 1 to " + i + ". Briefly connect to the previous lesson in the first card." : "This is the very first lesson: assume the learner knows nothing and start with something they can picture."}
 
 Build ${kid ? "6" : "10"} steps as a list that alternates teach cards and quiz questions, in this order: ${kid ? "teach, quiz, teach, quiz, teach, quiz." : "teach (hook: why this matters, with one real-life picture), quiz, teach (core idea 1), quiz, teach (core idea 2, building on 1), quiz, teach (a worked example, step by step), quiz (apply it), quiz (review an idea from earlier), quiz (a slightly harder challenge)."}
 TEACH RULES: each card has ONE idea only, at most ${kid ? "25" : "45"} words, in plain everyday words. When a new term appears, write it in **bold** with a plain meaning right next to it, the first time only. Use one concrete example or a familiar analogy (food, games, school, sport, phones, money). Never say "simply", "obviously" or "as we know". Never skip a step in your reasoning. ${kid ? "Start each card with one emoji." : ""}
@@ -5320,7 +5482,7 @@ ${voiceM(c.level)}${VISUALS}
 Course outline:
 ${outline}
 
-Write lesson ${i+1}: "${L.title}" — ${L.goal}
+${L.src ? "Base the lesson on this material from the learner's own slides. Stay faithful to it and explain it clearly; add only what is needed to understand it:\n---\n" + L.src.slice(0,6000) + "\n---\n" : ""}Write lesson ${i+1}: "${L.title}" — ${L.goal}
 Format in Markdown:
 - Open with 1-2 sentences on why this matters (no heading for this part).
 - 2 to 4 sections with "## " headings that teach the ideas step by step.

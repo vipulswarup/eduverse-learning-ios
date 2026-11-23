@@ -177,6 +177,18 @@ const groq = http.createServer((req, res) => {
   await A.p.click("#edvDel"); await A.p.waitForTimeout(1200);
   ok(icloud.removed, "Delete all my data also removes the iCloud copy");
 
+  // ---- slides upload and book style
+  { const D = await phone({}); calls = [];
+    await D.p.goto(site); await D.p.waitForTimeout(800);
+    await (await D.p.$("#pptFile")).setInputFiles(process.env.TEST_PPTX || path.join(__dirname, "test-deck.pptx")); await D.p.waitForTimeout(2500);
+    ok(/Groq course/.test(await txt(D.p)), "slides: a course is built from an uploaded .pptx");
+    ok(calls.some(c => /Photosynthesis/.test(c.last) && /Chlorophyll/.test(c.last) && /note Chlorophyll/.test(c.last)), "slides: the slide text and speaker notes reach the AI");
+    await D.p.goto(site); await D.p.waitForTimeout(800);
+    ok(/Quiz: Groq course/.test(await txt(D.p)) && /Slides/.test(await txt(D.p)), "slides: a quiz is added next to the course");
+    await D.p.click("#bookChk + span"); calls = []; await D.p.fill("#topic", "fractions"); await D.p.click("#goBtn"); await D.p.waitForTimeout(1500);
+    await D.p.click("#cont"); await D.p.waitForTimeout(1800);
+    ok(!!(await D.p.$("#body")) && !(await D.p.$(".sp-card")), "book style: opens the old text-lesson format, not the card steps");
+    await D.ctx.close(); }
   const all = [A, B, C, K, P];
   const errs = all.flatMap(x => x.errs), ext = all.flatMap(x => x.external);
   ok(errs.length === 0, "no JS errors" + (errs.length ? ": " + errs.slice(0, 3).join(" | ") : ""));
